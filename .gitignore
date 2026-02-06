@@ -1,0 +1,21 @@
+# Development artifacts
+__pycache__/
+*.py[cod]
+*.so
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# GPG artifacts
+*.asc
+*.sig
+gpg/
+*.gnupg
+*.gpg
+gpg-agent.conf
+gpg.conf
+
+# Temporary files
+*.tmp
+*.log
