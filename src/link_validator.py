@@ -41,7 +41,7 @@ class LinkValidator:
         # In production, this would use graph traversal (A->B->C->A = cycle)
         # For now, we use a simple check
         cycle = self._would_create_cycle(from_shard_id, to_shard_id, visited=set(), depth=0)
-        if cycle:
+        if cycle.get("cycle", False):
             return False, f"Reference would create a cycle (depth: {cycle['depth']})"
         
         # All checks passed
@@ -50,19 +50,15 @@ class LinkValidator:
     def _would_create_cycle(self, from_shard, to_shard, visited, depth):
         """Check if adding this link would create a cycle"""
         if depth > self.max_cycle_depth:
-            return {"cycle": True, "depth": depth}
+            return {"cycle": False, "depth": depth}
         
+        # Check if to_shard is already in visited (would create cycle)
         if to_shard in visited:
             return {"cycle": True, "depth": depth}
         
+        # Add to_shard to visited for next iteration
         visited.add(to_shard)
         
-        # Check if any shard in visited has this as a target (incoming link)
-        # This is a simplified cycle detection
-        # In production, we'd use a proper graph traversal
-        for shard in visited:
-            # In a real system, we'd check if shard has from_shard as a target
-            # For now, we assume links are bidirectional
-            pass
-        
-        return {"cycle": False, "depth": depth}
+        # For a simple depth check, we stop here
+        # A full implementation would traverse the graph
+        return {"cycle": False, "depth": depth + 1}
