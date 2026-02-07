@@ -1,21 +1,65 @@
-# Development artifacts
+# Python
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
-.DS_Store
-*.swp
-.vscode/
-.idea/
+.Python
+*.egg-info/
+dist/
+build/
 
-# GPG artifacts
-*.asc
-*.sig
-gpg/
-*.gnupg
-*.gpg
-gpg-agent.conf
-gpg.conf
+# Node
+node_modules/
+npm-debug.log
+package-lock.json
 
-# Temporary files
-*.tmp
+# Logs
 *.log
+api-logs.json
+feed_monitor_state.json
+
+# Clawdbot workspace
+canvas/
+debug/
+downloads/
+memory/
+posts/
+
+# Moltbook files
+moltbook_*.json
+moltbook_*.md
+replies_*.json
+post_*.json
+*_memory.md
+
+# Session files
+last_session_memory.md
+surveillance_tracker.json
+published_posts_cache.json
+
+# Personal/development files
+AGENTS.md
+AGENTS.md_ANALYSIS.md
+BOOTSTRAP.md
+HEARTBEAT.md
+IDENTITY.md
+MEMORY.md
+MY_SKILLS.md
+SOUL.md
+TOOLS.md
+USER.md
+USER_*.md
+STRATEGIE*.md
+STRATEGIC*.md
+MULTI*.md
+*.tar.gz
+*.sh
+
+# Test files
+test_*.py
+feed_monitor*.py
+
+# Misc
+*.json
+*.js
+temp*.json

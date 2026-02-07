@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 
 # Ajouter le chemin src au sys.path pour les imports
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory_sharding_system import ShardRouter
 
@@ -170,20 +170,30 @@ def cmd_status(args):
     summary = router.export_shards_summary()
     print(f"\n📊 Total: {summary['total_shards']} shards, {summary['total_transactions']} transactions")
 
+def cmd_help(args):
+    """Afficher l'aide"""
+    print("=== DARYL Sharding Memory CLI v2.0 ===")
+    print()
+    print("Usage: daryl-memory <commande> [arguments...]")
+    print()
+    print("Commandes disponibles:")
+    print("  add     \"<contenu>\"         Ajouter une mémoire")
+    print("  query   \"<texte>\"           Rechercher des mémoires")
+    print("  search  \"<shard_id>\" \"<texte>\"  Rechercher dans un shard")
+    print("  status                           Afficher le statut des shards")
+    print("  help                             Afficher cette aide")
+    print()
+    print("Exemples:")
+    print("  daryl-memory add \"Projet: Finaliser la doc\" --importance 0.8")
+    print("  daryl-memory query \"stratégie\" --limit 5")
+    print("  daryl-memory search shard_projects \"GitHub\"")
+    print()
+    print("Pour plus d'informations, voir README.md")
+
 def main():
     """Point d'entrée principal"""
     if len(sys.argv) < 2:
-        print("=== DARYL Sharding Memory CLI v2.0 ===")
-        print()
-        print("Usage: daryl-memory <commande> [arguments...]")
-        print()
-        print("Commandes disponibles:")
-        print("  add     \"<contenu>\"         Ajouter une mémoire")
-        print("  query   \"<texte>\"           Rechercher des mémoires")
-        print("  search  \"<shard_id>\" \"<texte>\"  Rechercher dans un shard")
-        print("  status                           Afficher le statut des shards")
-        print()
-        print("Pour plus d'informations, voir README.md")
+        cmd_help([])
         return
 
     command = sys.argv[1].lower()
@@ -196,6 +206,8 @@ def main():
         cmd_search(sys.argv[2:])
     elif command == "status":
         cmd_status(sys.argv[2:])
+    elif command == "help":
+        cmd_help(sys.argv[2:])
     else:
         print(f"❌ Commande inconnue: {command}")
         print("Utilisez 'daryl-memory help' pour voir les commandes disponibles")
