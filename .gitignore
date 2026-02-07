@@ -55,11 +55,8 @@ MULTI*.md
 *.tar.gz
 *.sh
 
-# Test files
-test_*.py
+# Feed monitor (not tests)
 feed_monitor*.py
 
 # Misc
-*.json
-*.js
 temp*.json
