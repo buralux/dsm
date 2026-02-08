@@ -10,21 +10,34 @@
         <h1>🧠 DARYL Web UI</h1>
         <p class="subtitle">Inspection Sharding Memory - Phase 2: Semantic Search</p>
         
-        <div class="row">
+        <div class="row input-row">
             <input id="q" type="text" placeholder="Recherche..." />
-            <button onclick="doSearch('search')">Semantic</button>
-            <button onclick="doSearch('hybrid')">Hybrid</button>
+            <select id="shard_filter" onchange="filterByShard()">
+                <option value="">Tous les shards</option>
+                <option value="shard_projects">Projets</option>
+                <option value="shard_insights">Insights</option>
+                <option value="shard_technical">Technical</option>
+                <option value="shard_strategy">Stratégie</option>
+                <option value="shard_people">People</option>
+            </select>
+            <button onclick="doSearch('search')" class="search-btn">Semantic</button>
+            <button onclick="doSearch('hybrid')" class="search-btn">Hybrid</button>
             <button onclick="loadStats()">Stats</button>
         </div>
         
-        <div class="row">
+        <div class="row actions-row">
             <button onclick="loadShards()">Shards</button>
             <button onclick="compressMemory()">Compress</button>
             <button onclick="cleanupMemory()">Cleanup</button>
+            <label class="toggle-label">
+                <input id="dry_run" type="checkbox" checked />
+                <span>Dry-run</span>
+            </label>
         </div>
         
         <div class="output">
             <h2>Output</h2>
+            <div id="results-cards" class="results-cards"></div>
             <pre id="out">{}</pre>
         </div>
     </div>
