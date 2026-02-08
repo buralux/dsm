@@ -45,7 +45,7 @@ HEARTBEAT.md
 IDENTITY.md
 MEMORY.md
 MY_SKILLS.md
-SOUL.md
+SOL.md
 TOOLS.md
 USER.md
 USER_*.md
@@ -60,3 +60,12 @@ feed_monitor*.py
 
 # Misc
 temp*.json
+
+# ============= FIX POUR PHASE 2 =============
+# NE PAS IGNORER `src/`
+!src/
+
+# Runtime data (ignorés mais tracker et metadata trackingés)
+#memory/
+#archives/
+#surveillance_tracker.json
