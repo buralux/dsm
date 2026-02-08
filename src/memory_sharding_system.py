@@ -17,10 +17,10 @@ from pathlib import Path
 from typing import List, Dict, Optional
 
 try:
-    from src.embedding_service import EmbeddingService
-    from src.semantic_search import SemanticSearch
-    from src.memory_compressor import MemoryCompressor
-    from src.memory_cleaner import MemoryCleaner
+    from embedding_service import EmbeddingService
+    from semantic_search import SemanticSearch
+    from memory_compressor import MemoryCompressor
+    from memory_cleaner import MemoryCleaner
 except ImportError:
     raise ImportError("Phase 2 modules not available. Vérifiez l'installation.")
 

@@ -1,46 +1,94 @@
 <!doctype html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="utf-8"/>
-    <title>DARYL Web UI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title>DARYL • Sharding Memory</title>
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="/static/style.css"/>
 </head>
-<body>
-    <div class="container">
-        <h1>🧠 DARYL Web UI</h1>
-        <p class="subtitle">Inspection Sharding Memory - Phase 2: Semantic Search</p>
+<body class="min-h-screen text-white">
+    <!-- Background -->
+    <div class="bg-blob"></div>
+    <div class="grain"></div>
+    
+    <header class="mx-auto max-w-6xl px-6 pt-8">
+        <nav class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="logo-dot"></div>
+                <span class="text-lg font-semibold tracking-wide">DARYL</span>
+                <span class="text-xs text-white/60">Sharding Memory</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <a class="nav-link" href="/docs" target="_blank">Docs</a>
+                <a class="nav-link" href="/stats" target="_blank">Stats API</a>
+                <a class="nav-link" href="/shards" target="_blank">Shards API</a>
+            </div>
+        </nav>
         
-        <div class="row input-row">
-            <input id="q" type="text" placeholder="Recherche..." />
-            <select id="shard_filter" onchange="filterByShard()">
-                <option value="">Tous les shards</option>
-                <option value="shard_projects">Projets</option>
-                <option value="shard_insights">Insights</option>
-                <option value="shard_technical">Technical</option>
-                <option value="shard_strategy">Stratégie</option>
-                <option value="shard_people">People</option>
-            </select>
-            <button onclick="doSearch('search')" class="search-btn">Semantic</button>
-            <button onclick="doSearch('hybrid')" class="search-btn">Hybrid</button>
-            <button onclick="loadStats()">Stats</button>
-        </div>
-        
-        <div class="row actions-row">
-            <button onclick="loadShards()">Shards</button>
-            <button onclick="compressMemory()">Compress</button>
-            <button onclick="cleanupMemory()">Cleanup</button>
-            <label class="toggle-label">
-                <input id="dry_run" type="checkbox" checked />
-                <span>Dry-run</span>
-            </label>
-        </div>
-        
-        <div class="output">
-            <h2>Output</h2>
-            <div id="results-cards" class="results-cards"></div>
-            <pre id="out">{}</pre>
-        </div>
-    </div>
+        <!-- Hero -->
+        <section class="mt-10 grid gap-6 md:grid-cols-12">
+            <div class="md:col-span-7">
+                <h1 class="text-4xl md:text-5xl font-semibold leading-tight">
+                    Memory Intelligence <span class="hero-gradient">for Agent Infrastructure</span>
+                </h1>
+                <p class="mt-4 text-white/70 max-w-xl">
+                    Recherche sémantique, recherche hybride, compression, et TTL cleanup — sur toutes les shards.
+                </p>
+                
+                <!-- Search bar -->
+                <div class="mt-6 glass p-3 flex flex-col gap-3">
+                    <div class="flex gap-2">
+                        <input id="q" class="input" placeholder="Recherche (ex: integration gap, agent intent, routing...)" />
+                        <button class="btn-primary" onclick="doSearch('search')">Semantic</button>
+                        <button class="btn-secondary" onclick="doSearch('hybrid')">Hybrid</button>
+                    </div>
+                    <div class="flex flex-wrap gap-2 items-center">
+                        <button class="chip" onclick="loadStats()">Stats</button>
+                        <button class="chip" onclick="loadShards()">Shards</button>
+                        <div class="ml-auto flex items-center gap-2 text-xs text-white/60">
+                            <label>top_k</label>
+                            <input id="top_k" class="mini" value="5"/>
+                            <label>min_score</label>
+                            <input id="min_score" class="mini" value="0.0"/>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Side panel -->
+            <div class="md:col-span-5">
+                <div class="glass p-5 h-full">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-sm font-semibold text-white/80">Live Output</h2>
+                        <span id="status" class="text-xs text-white/50">ready</span>
+                    </div>
+                    <pre id="out" class="mt-3 code">{}</pre>
+                </div>
+            </div>
+        </section>
+    </header>
+    
+    <main class="mx-auto max-w-6xl px-6 pb-16 mt-10">
+        <section class="grid gap-4 md:grid-cols-3">
+            <div class="glass p-5 hover-glow">
+                <div class="text-xs text-white/60">Phase 2</div>
+                <div class="mt-1 text-lg font-semibold">Semantic Search</div>
+                <div class="mt-2 text-sm text-white/70">Vectoriel + cache embeddings + tests 100% verts.</div>
+            </div>
+            <div class="glass p-5 hover-glow">
+                <div class="text-xs text-white/60">Ops</div>
+                <div class="mt-1 text-lg font-semibold">Compression</div>
+                <div class="mt-2 text-sm text-white/70">Consolidation de doublons, mémoire plus nette.</div>
+            </div>
+            <div class="glass p-5 hover-glow">
+                <div class="text-xs text-white/60">TTL</div>
+                <div class="mt-1 text-lg font-semibold">Cleanup</div>
+                <div class="mt-2 text-sm text-white/70">Expiration par shard + archives, zéro dette.</div>
+            </div>
+        </section>
+    </main>
     
     <script src="/static/app.js"></script>
 </body>
