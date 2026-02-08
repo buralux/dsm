@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>DARYL Web UI</title>
+    <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+    <div class="container">
+        <h1>🧠 DARYL Web UI</h1>
+        <p class="subtitle">Inspection Sharding Memory - Phase 2: Semantic Search</p>
+        
+        <div class="row">
+            <input id="q" type="text" placeholder="Recherche..." />
+            <button onclick="doSearch('search')">Semantic</button>
+            <button onclick="doSearch('hybrid')">Hybrid</button>
+            <button onclick="loadStats()">Stats</button>
+        </div>
+        
+        <div class="row">
+            <button onclick="loadShards()">Shards</button>
+            <button onclick="compressMemory()">Compress</button>
+            <button onclick="cleanupMemory()">Cleanup</button>
+        </div>
+        
+        <div class="output">
+            <h2>Output</h2>
+            <pre id="out">{}</pre>
+        </div>
+    </div>
+    
+    <script src="/static/app.js"></script>
+</body>
+</html>
