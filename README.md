@@ -151,7 +151,7 @@ See `docs/SECURITY_CONSIDERATIONS.md` for complete security model:
 
 ## 📝 License
 
-MIT License. See [LICENSE](LICENSE).
+Apache-2.0. See [LICENSE](LICENSE).
 
 ---
 
