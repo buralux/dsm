@@ -1,4 +1,4 @@
-# DARYL Sharding Memory
+# DSM — Daryl Sharding Memory
 
 A **lightweight, Python-based semantic memory system** for building stateful AI agents with intelligent routing and cross-references.
 
@@ -9,8 +9,8 @@ A **lightweight, Python-based semantic memory system** for building stateful AI 
 ### Installation
 ```bash
 # Clone repository
-git clone https://github.com/buralux/daryl-sharding-memory.git
-cd daryl-sharding-memory
+git clone https://github.com/daryl-labs/dsm.git
+cd dsm
 
 # Run system
 python3 src/memory_sharding_system.py
@@ -39,7 +39,7 @@ python3 src/cli/daryl_memory_cli.py help
 ## 📁 Architecture
 
 ```
-daryl-sharding-memory/
+dsm/
 ├── memory/
 │   └── shards/           # 5 domain-specific memory stores (JSON)
 ├── src/
@@ -51,8 +51,7 @@ daryl-sharding-memory/
 │   ├── SECURITY_CONSIDERATIONS.md  # Security model
 │   ├── spec_global_memory_architecture.md
 │   └── daryl_sharding_critique_analysis.md
-└── .github/workflows/
-    └── bot-push.yml                # GitHub Actions automation
+└── docs/                           # Specs, API, security
 ```
 
 ---
@@ -152,15 +151,14 @@ See `docs/SECURITY_CONSIDERATIONS.md` for complete security model:
 
 ## 📝 License
 
-MIT License - Open source for experimentation and research use.
+MIT License. See [LICENSE](LICENSE).
 
 ---
 
 ## 🤝 Contributing
 
-Feedback and contributions welcome! See issues on GitHub.
+Feedback and contributions welcome. See [daryl.md](https://daryl.md) and issues on GitHub.
 
 ---
 
-*Built for DARYL AI assistant - 2026-02-07*
-*Open source - https://github.com/buralux/daryl-sharding-memory*
+*DARYL-LABS — https://daryl.md — https://github.com/daryl-labs/dsm*
