@@ -15,7 +15,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from memory_sharding_system import ShardRouter
 
-def cmd_add(args):
+
+def build_router(verbose: bool = False):
+    """Construit un routeur DSM avec niveau de logs configurable."""
+    return ShardRouter(verbose=verbose)
+
+
+def cmd_add(args, verbose=False):
     """Ajouter une mémoire"""
     if not args:
         print("Usage: daryl-memory add \"<contenu>\" [--importance <0.5-1.0>] [--source <manual|moltbook>]")
@@ -40,8 +46,7 @@ def cmd_add(args):
         else:
             i += 1
 
-    router = ShardRouter()
-    router.load_all_shards()
+    router = build_router(verbose=verbose)
 
     transaction_id = router.add_memory(content, source=source, importance=importance)
 
@@ -57,9 +62,9 @@ def cmd_add(args):
         print(f"   Source: {source}")
         print(f"   Importance: {importance}")
     else:
-        print(f"❌ Erreur: Impossible de trouver le shard cible")
+        print(f"❌ Erreur: Impossible de trouver le shard cible", file=sys.stderr)
 
-def cmd_query(args):
+def cmd_query(args, verbose=False):
     """Rechercher des mémoires"""
     if len(args) < 1:
         print("Usage: daryl-memory query \"<texte>\" [--limit <n>] [--cross]")
@@ -84,8 +89,7 @@ def cmd_query(args):
         else:
             i += 1
 
-    router = ShardRouter()
-    router.load_all_shards()
+    router = build_router(verbose=verbose)
 
     if cross_shard:
         results = router.cross_shard_search(query_text)
@@ -102,7 +106,7 @@ def cmd_query(args):
         content = r["content"][:70] + "..." if len(r["content"]) > 70 else r["content"]
         print(f"  • [{shard_name}] {content}")
 
-def cmd_search(args):
+def cmd_search(args, verbose=False):
     """Rechercher dans un shard spécifique"""
     if len(args) < 2:
         print("Usage: daryl-memory search \"<shard_id>\" \"<texte>\" [--limit <n>]")
@@ -121,11 +125,10 @@ def cmd_search(args):
         else:
             i += 1
 
-    router = ShardRouter()
-    router.load_all_shards()
+    router = build_router(verbose=verbose)
 
     if shard_id not in router.shards:
-        print(f"❌ Erreur: Shard '{shard_id}' introuvable")
+        print(f"❌ Erreur: Shard '{shard_id}' introuvable", file=sys.stderr)
         return
 
     shard = router.shards[shard_id]
@@ -139,10 +142,9 @@ def cmd_search(args):
         content = r["content"][:70] + "..." if len(r["content"]) > 70 else r["content"]
         print(f"  • {content}")
 
-def cmd_status(args):
+def cmd_status(args, verbose=False):
     """Afficher le statut des shards"""
-    router = ShardRouter()
-    router.load_all_shards()
+    router = build_router(verbose=verbose)
 
     print("📊 Statut des Shards DARYL:")
     print()
@@ -153,7 +155,8 @@ def cmd_status(args):
         name = shard_status["name"]
         count = shard_status["transactions_count"]
         importance = shard_status["importance_score"]
-        last = shard_status["last_updated"][:19]  # Just date et heure
+        last_updated = shard_status.get("last_updated")
+        last = last_updated[:19] if isinstance(last_updated, str) else "N/A"
 
         # Émoji basé sur le nombre de transactions
         if count == 0:
@@ -170,11 +173,14 @@ def cmd_status(args):
     summary = router.export_shards_summary()
     print(f"\n📊 Total: {summary['total_shards']} shards, {summary['total_transactions']} transactions")
 
-def cmd_help(args):
+def cmd_help(args, verbose=False):
     """Afficher l'aide"""
     print("=== DARYL Sharding Memory CLI v2.0 ===")
     print()
-    print("Usage: daryl-memory <commande> [arguments...]")
+    print("Usage: daryl-memory [--verbose|-v] <commande> [arguments...]")
+    print()
+    print("Options globales:")
+    print("  -v, --verbose                    Activer les logs détaillés")
     print()
     print("Commandes disponibles:")
     print("  add     \"<contenu>\"         Ajouter une mémoire")
@@ -185,7 +191,7 @@ def cmd_help(args):
     print()
     print("Exemples:")
     print("  daryl-memory add \"Projet: Finaliser la doc\" --importance 0.8")
-    print("  daryl-memory query \"stratégie\" --limit 5")
+    print("  daryl-memory --verbose query \"stratégie\" --limit 5")
     print("  daryl-memory search shard_projects \"GitHub\"")
     print()
     print("Pour plus d'informations, voir README.md")
@@ -193,24 +199,50 @@ def cmd_help(args):
 def main():
     """Point d'entrée principal"""
     if len(sys.argv) < 2:
-        cmd_help([])
+        cmd_help([], verbose=False)
         return
 
-    command = sys.argv[1].lower()
+    raw_args = sys.argv[1:]
+    verbose = False
+    help_requested = False
+    filtered_args = []
+
+    for arg in raw_args:
+        if arg in ("-v", "--verbose"):
+            verbose = True
+        elif arg in ("-h", "--help"):
+            help_requested = True
+        else:
+            filtered_args.append(arg)
+
+    if help_requested and not filtered_args:
+        cmd_help([], verbose=verbose)
+        return
+
+    if not filtered_args:
+        cmd_help([], verbose=verbose)
+        return
+
+    if help_requested:
+        cmd_help([], verbose=verbose)
+        return
+
+    command = filtered_args[0].lower()
+    cmd_args = filtered_args[1:]
 
     if command == "add":
-        cmd_add(sys.argv[2:])
+        cmd_add(cmd_args, verbose=verbose)
     elif command == "query":
-        cmd_query(sys.argv[2:])
+        cmd_query(cmd_args, verbose=verbose)
     elif command == "search":
-        cmd_search(sys.argv[2:])
+        cmd_search(cmd_args, verbose=verbose)
     elif command == "status":
-        cmd_status(sys.argv[2:])
+        cmd_status(cmd_args, verbose=verbose)
     elif command == "help":
-        cmd_help(sys.argv[2:])
+        cmd_help(cmd_args, verbose=verbose)
     else:
-        print(f"❌ Commande inconnue: {command}")
-        print("Utilisez 'daryl-memory help' pour voir les commandes disponibles")
+        print(f"❌ Commande inconnue: {command}", file=sys.stderr)
+        print("Utilisez 'daryl-memory help' pour voir les commandes disponibles", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

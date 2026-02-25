@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include CHANGELOG.md
+recursive-include src/webui/templates *.html
+recursive-include src/webui/static *.js *.css
+recursive-include docs *.md

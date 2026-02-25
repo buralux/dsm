@@ -7,6 +7,7 @@ Utilise les embeddings et la similarité cosinus pour retrouver des informations
 
 import json
 import numpy as np
+import sys
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
@@ -21,7 +22,7 @@ except ImportError as e:
 class SemanticSearch:
     """Recherche sémantique basée sur les embeddings"""
     
-    def __init__(self, shards_directory="memory/shards", threshold=0.7, top_k=5):
+    def __init__(self, shards_directory="memory/shards", threshold=0.7, top_k=5, verbose: bool = False):
         """
         Initialise le module de recherche sémantique
         
@@ -33,22 +34,28 @@ class SemanticSearch:
         self.shards_dir = shards_directory
         self.threshold = threshold
         self.top_k = top_k
-        self.embedding_service = EmbeddingService()
+        self.verbose = verbose
+        self.embedding_service = EmbeddingService(verbose=self.verbose)
         self.shards_data = {}
         self._load_all_shards()
+
+    def _log(self, message: str):
+        if self.verbose:
+            stream = sys.stderr if message.startswith(("❌", "⚠️")) else sys.stdout
+            print(message, file=stream)
     
     def _load_all_shards(self):
         """Charge toutes les données de shards avec leurs embeddings"""
         shards_path = Path(self.shards_dir)
         
         if not shards_path.exists():
-            print(f"❌ Répertoire des shards non trouvé: {self.shards_dir}")
+            self._log(f"❌ Répertoire des shards non trouvé: {self.shards_dir}")
             return
         
         # Parcourir tous les fichiers .json
         shard_files = list(shards_path.glob("*.json"))
         
-        print(f"📁 Chargement de {len(shard_files)} shards depuis {self.shards_dir}")
+        self._log(f"📁 Chargement de {len(shard_files)} shards depuis {self.shards_dir}")
         
         for shard_file in shard_files:
             shard_id = shard_file.stem
@@ -72,9 +79,9 @@ class SemanticSearch:
                         "transactions": transactions
                     }
                     
-                    print(f"   ✅ {shard_id}: {len(transactions)} transactions chargées")
+                    self._log(f"   ✅ {shard_id}: {len(transactions)} transactions chargées")
             except Exception as e:
-                print(f"   ❌ {shard_id}: Erreur de chargement - {e}")
+                self._log(f"   ❌ {shard_id}: Erreur de chargement - {e}")
     
     def _cosine_similarity(self, vec_a: List[float], vec_b: List[float]) -> float:
         """
@@ -113,10 +120,16 @@ class SemanticSearch:
             # Assurer que le score est dans [-1, 1]
             return max(-1.0, min(1.0, similarity))
         except Exception as e:
-            print(f"❌ Erreur calcul similarité: {e}")
+            print(f"❌ Erreur calcul similarité: {e}", file=sys.stderr)
             return 0.0
     
-    def search(self, query_text: str, shard_id: Optional[str] = None) -> List[Dict]:
+    def search(
+        self,
+        query_text: str,
+        shard_id: Optional[str] = None,
+        threshold: Optional[float] = None,
+        top_k: Optional[int] = None,
+    ) -> List[Dict]:
         """
         Recherche sémantique dans les shards
         
@@ -127,11 +140,14 @@ class SemanticSearch:
         Returns:
             Liste des résultats triés par similarité (décroissante)
         """
+        effective_threshold = self.threshold if threshold is None else threshold
+        effective_top_k = self.top_k if top_k is None else top_k
+
         # Générer l'embedding de la requête
         query_embedding = self.embedding_service.generate_embedding(query_text)
         
         if query_embedding is None:
-            print(f"❌ Erreur génération embedding pour: {query_text}")
+            print(f"❌ Erreur génération embedding pour: {query_text}", file=sys.stderr)
             return []
         
         results = []
@@ -156,7 +172,8 @@ class SemanticSearch:
                 similarity = self._cosine_similarity(query_embedding, tx_embedding)
                 
                 # Filtrer par seuil
-                if similarity >= self.threshold:
+                if similarity >= effective_threshold:
+                    output_similarity = float(max(0.0, min(1.0, similarity)))
                     results.append({
                         "shard_id": sid,
                         "shard_name": shard_data.get("config", {}).get("name", sid),
@@ -165,16 +182,57 @@ class SemanticSearch:
                         "importance": tx.get("importance", 0),
                         "timestamp": tx.get("timestamp", ""),
                         "source": tx.get("source", ""),
-                        "score": float(similarity)  # Ensure it's a float
+                        "similarity": output_similarity,
+                        "score": output_similarity,
                     })
+
+        # Fallback lexical si les embeddings ne remontent aucun résultat.
+        if not results:
+            query_lower = query_text.lower().strip()
+            query_tokens = {tok for tok in query_lower.split() if tok}
+            for sid in shards_to_search:
+                if sid not in self.shards_data:
+                    continue
+                shard_data = self.shards_data[sid]
+                for tx in shard_data.get("transactions", []):
+                    content = tx.get("content", "")
+                    content_lower = content.lower()
+                    if not content_lower:
+                        continue
+
+                    if query_lower and query_lower in content_lower:
+                        lexical_similarity = 1.0
+                    else:
+                        content_tokens = {tok for tok in content_lower.split() if tok}
+                        overlap = len(query_tokens.intersection(content_tokens))
+                        lexical_similarity = (overlap / len(query_tokens)) if query_tokens else 0.0
+
+                    if lexical_similarity >= effective_threshold:
+                        results.append({
+                            "shard_id": sid,
+                            "shard_name": shard_data.get("config", {}).get("name", sid),
+                            "transaction_id": tx.get("id", ""),
+                            "content": content,
+                            "importance": tx.get("importance", 0),
+                            "timestamp": tx.get("timestamp", ""),
+                            "source": tx.get("source", ""),
+                            "similarity": float(lexical_similarity),
+                            "score": float(lexical_similarity),
+                        })
         
         # Trier par similarité décroissante
         results.sort(key=lambda x: x["score"], reverse=True)
         
         # Limiter à top_k résultats
-        return results[:self.top_k]
+        return results[:effective_top_k]
     
-    def hybrid_search(self, query_text: str, shard_id: Optional[str] = None) -> List[Dict]:
+    def hybrid_search(
+        self,
+        query_text: str,
+        shard_id: Optional[str] = None,
+        threshold: Optional[float] = None,
+        top_k: Optional[int] = None,
+    ) -> List[Dict]:
         """
         Recherche hybride: sémantique + full-text (mots-clés)
         
@@ -186,7 +244,8 @@ class SemanticSearch:
             Liste des résultats triés (score hybride, décroissant)
         """
         # 1. Recherche sémantique
-        semantic_results = self.search(query_text, shard_id)
+        effective_top_k = self.top_k if top_k is None else top_k
+        semantic_results = self.search(query_text, shard_id, threshold=threshold, top_k=effective_top_k)
         
         # 2. Recherche full-text (mots-clés)
         query_lower = query_text.lower()
@@ -219,6 +278,7 @@ class SemanticSearch:
                         "importance": tx.get("importance", 0),
                         "timestamp": tx.get("timestamp", ""),
                         "source": tx.get("source", ""),
+                        "similarity": 0.5,
                         "score": 0.5,  # Score moyen pour full-text match
                         "match_type": "keyword"
                     })
@@ -249,7 +309,7 @@ class SemanticSearch:
         hybrid_results.sort(key=lambda x: x["hybrid_score"], reverse=True)
         
         # Limiter à top_k résultats
-        return hybrid_results[:self.top_k]
+        return hybrid_results[:effective_top_k]
     
     def find_similar_transactions(self, transaction_id: str, shard_id: str, threshold: float = 0.9, top_k: int = 5) -> List[Dict]:
         """

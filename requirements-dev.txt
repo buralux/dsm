@@ -1,0 +1,6 @@
+-r requirements.txt
+-r requirements-web.txt
+build>=1.2.2
+pre-commit>=4.0.0
+pytest>=8.0.0
+twine>=6.1.0

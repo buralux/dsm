@@ -1,0 +1,15 @@
+services:
+  dsm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dsm:latest
+    ports:
+      - "8000:8000"
+    environment:
+      DSM_MEMORY_DIR: /data/memory
+      DSM_WEB_HOST: 0.0.0.0
+      DSM_WEB_PORT: "8000"
+    volumes:
+      - ./memory:/data/memory
+    restart: unless-stopped

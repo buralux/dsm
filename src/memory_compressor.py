@@ -7,6 +7,7 @@ Consolide les transactions similaires et supprime les doublons
 
 import json
 import numpy as np
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -30,10 +31,12 @@ class MemoryCompressor:
             similarity_threshold: Seuil de similarité cosinus (0.9)
             max_age_days: Âge maximum des transactions en jours
         """
-        self.shards_dir = shards_directory
+        self.shards_dir = Path(shards_directory)
         self.similarity_threshold = similarity_threshold
         self.max_age = max_age_days
-        self.semantic_search = SemanticSearch(shards_directory=shards_directory, threshold=similarity_threshold, top_k=10)
+        self.max_age_days = max_age_days
+        self.semantic_search = SemanticSearch(shards_directory=str(self.shards_dir), threshold=similarity_threshold, top_k=10)
+        self.shards_data = {}
         self.stats = {
             "total_transactions": 0,
             "consolidated_transactions": 0,
@@ -42,6 +45,19 @@ class MemoryCompressor:
             "last_compression": None
         }
         self._load_all_shards()
+
+    def _load_all_shards(self):
+        """Charge en mémoire la liste des shards disponibles."""
+        self.shards_data = {}
+        if not self.shards_dir.exists():
+            return
+
+        for shard_file in self.shards_dir.glob("*.json"):
+            try:
+                with open(shard_file, 'r', encoding='utf-8') as f:
+                    self.shards_data[shard_file.stem] = json.load(f)
+            except Exception as e:
+                print(f"⚠️ Shard ignoré ({shard_file.name}): {e}", file=sys.stderr)
     
     def _load_shard_data(self, shard_id: str) -> Optional[Dict]:
         """
@@ -53,7 +69,7 @@ class MemoryCompressor:
         Returns:
             Données du shard ou None
         """
-        shard_path = Path(self.shards_dir) / f"{shard_id}.json"
+        shard_path = self.shards_dir / f"{shard_id}.json"
         
         if not shard_path.exists():
             return None
@@ -63,7 +79,7 @@ class MemoryCompressor:
                 data = json.load(f)
                 return data
         except Exception as e:
-            print(f"❌ Erreur chargement shard {shard_id}: {e}")
+            print(f"❌ Erreur chargement shard {shard_id}: {e}", file=sys.stderr)
             return None
     
     def _find_similar_transactions(self, shard_data: Dict, transaction_id: str, top_k: int = 5) -> List[Dict]:
@@ -178,7 +194,7 @@ class MemoryCompressor:
         
         for tx in transactions:
             content = tx.get("content", "").strip().lower()
-            content_hash = f"{content}_{tx.get('importance', 0)}"
+            content_hash = content
             
             if content_hash in seen_contents:
                 removed_duplicates.append(tx.get("id"))
@@ -186,6 +202,10 @@ class MemoryCompressor:
             
             seen_contents.add(content_hash)
             unique_transactions.append(tx)
+
+        # Considérer la déduplication comme une forme de consolidation.
+        if removed_duplicates:
+            consolidated_count += 1
         
         # Consolider les transactions similaires
         for i, tx in enumerate(unique_transactions):
@@ -194,9 +214,10 @@ class MemoryCompressor:
             
             similar = self._find_similar_transactions(shard_data, tx["id"], top_k=3)
             
-            if len(similar) >= 2:
+            if len(similar) >= 1:
                 # Trouver les transactions similaires
-                similar_ids = [s.get("transaction_id") for s in similar]
+                similar_ids = [tx.get("id")] + [s.get("transaction_id") for s in similar]
+                similar_ids = [sid for sid in similar_ids if sid]
                 
                 # Consolidater
                 consolidated = self._consolidate_transactions(shard_id, similar_ids)
@@ -243,13 +264,14 @@ class MemoryCompressor:
             shard_id: ID du shard
             shard_data: Données du shard
         """
-        shard_path = Path(self.shards_dir) / f"{shard_id}.json"
+        self.shards_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = self.shards_dir / f"{shard_id}.json"
         
         try:
             with open(shard_path, 'w', encoding='utf-8') as f:
                 json.dump(shard_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"❌ Erreur sauvegarde shard {shard_id}: {e}")
+            print(f"❌ Erreur sauvegarde shard {shard_id}: {e}", file=sys.stderr)
     
     def compress_all_shards(self, force: bool = False) -> Dict[str, Dict[str, int]]:
         """
@@ -261,8 +283,7 @@ class MemoryCompressor:
         Returns:
             Dictionnaire avec stats par shard
         """
-        from pathlib import Path
-        shards_path = Path(self.shards_dir)
+        shards_path = self.shards_dir
         
         if not shards_path.exists():
             return {"error": "Shards directory not found"}
@@ -324,9 +345,9 @@ if __name__ == "__main__":
             print(f"   Avant compression: {result['total_before']}")
             print(f"   Après compression: {result['total_after']}")
         else:
-            print(f"   ❌ Erreur: {result['error']}")
+            print(f"   ❌ Erreur: {result['error']}", file=sys.stderr)
     else:
-        print("❌ Shard test non trouvé")
+        print("❌ Shard test non trouvé", file=sys.stderr)
     
     print()
     print("📊 Statistiques globales:")
