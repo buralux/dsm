@@ -193,7 +193,7 @@ class MemoryCompressor:
         
         for tx in transactions:
             content = tx.get("content", "").strip().lower()
-            content_hash = f"{content}_{tx.get('importance', 0)}"
+            content_hash = content
             
             if content_hash in seen_contents:
                 removed_duplicates.append(tx.get("id"))
@@ -201,6 +201,10 @@ class MemoryCompressor:
             
             seen_contents.add(content_hash)
             unique_transactions.append(tx)
+
+        # Considérer la déduplication comme une forme de consolidation.
+        if removed_duplicates:
+            consolidated_count += 1
         
         # Consolider les transactions similaires
         for i, tx in enumerate(unique_transactions):
@@ -209,9 +213,10 @@ class MemoryCompressor:
             
             similar = self._find_similar_transactions(shard_data, tx["id"], top_k=3)
             
-            if len(similar) >= 2:
+            if len(similar) >= 1:
                 # Trouver les transactions similaires
-                similar_ids = [s.get("transaction_id") for s in similar]
+                similar_ids = [tx.get("id")] + [s.get("transaction_id") for s in similar]
+                similar_ids = [sid for sid in similar_ids if sid]
                 
                 # Consolidater
                 consolidated = self._consolidate_transactions(shard_id, similar_ids)

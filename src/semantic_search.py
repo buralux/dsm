@@ -178,6 +178,40 @@ class SemanticSearch:
                         "similarity": output_similarity,
                         "score": output_similarity,
                     })
+
+        # Fallback lexical si les embeddings ne remontent aucun résultat.
+        if not results:
+            query_lower = query_text.lower().strip()
+            query_tokens = {tok for tok in query_lower.split() if tok}
+            for sid in shards_to_search:
+                if sid not in self.shards_data:
+                    continue
+                shard_data = self.shards_data[sid]
+                for tx in shard_data.get("transactions", []):
+                    content = tx.get("content", "")
+                    content_lower = content.lower()
+                    if not content_lower:
+                        continue
+
+                    if query_lower and query_lower in content_lower:
+                        lexical_similarity = 1.0
+                    else:
+                        content_tokens = {tok for tok in content_lower.split() if tok}
+                        overlap = len(query_tokens.intersection(content_tokens))
+                        lexical_similarity = (overlap / len(query_tokens)) if query_tokens else 0.0
+
+                    if lexical_similarity >= effective_threshold:
+                        results.append({
+                            "shard_id": sid,
+                            "shard_name": shard_data.get("config", {}).get("name", sid),
+                            "transaction_id": tx.get("id", ""),
+                            "content": content,
+                            "importance": tx.get("importance", 0),
+                            "timestamp": tx.get("timestamp", ""),
+                            "source": tx.get("source", ""),
+                            "similarity": float(lexical_similarity),
+                            "score": float(lexical_similarity),
+                        })
         
         # Trier par similarité décroissante
         results.sort(key=lambda x: x["score"], reverse=True)
