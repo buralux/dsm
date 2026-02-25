@@ -16,16 +16,17 @@ test:
 	$(PYTHON) -m unittest discover -s tests -q
 
 build:
+	$(PIP) install --quiet build
 	$(PYTHON) -m build
 
 precommit:
 	pre-commit run --all-files
 
 run-cli:
-	daryl-memory status
+	$(PYTHON) -m cli.daryl_memory_cli status
 
 run-web:
-	dsm-webui
+	$(PYTHON) -m webui.app
 
 docker-build:
 	docker build -t dsm:latest .
