@@ -11,7 +11,7 @@ Merci de contribuer au projet DSM.
 ## Setup local
 
 ```bash
-git clone https://github.com/daryl-labs/dsm.git
+git clone https://github.com/buralux/dsm.git
 cd dsm
 python3 -m pip install -e ".[dev,web]"
 pre-commit install

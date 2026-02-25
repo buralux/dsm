@@ -48,10 +48,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/daryl-labs/dsm"
-Repository = "https://github.com/daryl-labs/dsm"
-Issues = "https://github.com/daryl-labs/dsm/issues"
-Documentation = "https://github.com/daryl-labs/dsm/tree/main/docs"
+Homepage = "https://github.com/buralux/dsm"
+Repository = "https://github.com/buralux/dsm"
+Issues = "https://github.com/buralux/dsm/issues"
+Documentation = "https://github.com/buralux/dsm/tree/main/docs"
 
 [project.scripts]
 daryl-memory = "cli.daryl_memory_cli:main"

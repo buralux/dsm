@@ -16,21 +16,54 @@ A **Python-based semantic memory system** for stateful AI agents, with domain sh
 
 ## 🚀 Quick Start
 
-### Install (local editable)
-
 ```bash
-git clone <your-fork-or-repo-url>
+git clone https://github.com/buralux/dsm.git
 cd dsm
 python3 -m pip install -e ".[dev,web]"
+daryl-memory status
 ```
 
-### Install (package)
+---
+
+## 📦 Install
+
+### From PyPI
 
 ```bash
 python3 -m pip install daryl-sharding-memory
+daryl-memory --help
 ```
 
-### CLI usage
+### Local editable install (contributors)
+
+```bash
+python3 -m pip install -e ".[dev,web]"
+```
+
+### Project naming (important)
+
+- **PyPI package name**: `daryl-sharding-memory`
+- **Python imports**: module-based (`memory_sharding_system`, `semantic_search`, etc.)
+- **CLI commands**: `daryl-memory`, `dsm-webui`
+
+---
+
+## 🧪 Dev run
+
+```bash
+# Core demo run
+python3 src/memory_sharding_system.py
+
+# CLI via source module
+python3 -m cli.daryl_memory_cli status
+
+# Web UI via source module
+python3 -m webui.app
+```
+
+---
+
+## 💻 CLI usage
 
 ```bash
 # Check system status
@@ -94,9 +127,24 @@ twine upload dist/*
 
 Automated flow:
 
+- Configure repository secret: `PYPI_API_TOKEN`
+- Ensure the tagged commit is already reachable from `main`
 - Create a tag `vX.Y.Z`
 - Push the tag
 - GitHub Action `Publish to PyPI` publishes the package
+
+Note: the release workflow is tag-based (`v*`) and is intended for mainline releases.
+
+---
+
+## 🧩 Compatibility
+
+- **Python**: 3.10, 3.11, 3.12
+- **OS**: Linux/macOS/Windows (WSL recommended on Windows)
+- **Docker**: optional for deployment
+- **Embeddings backend**:
+  - default: deterministic local dummy embeddings (no model download)
+  - optional real model: install `.[ml]` and set `DSM_USE_REAL_EMBEDDINGS=1`
 
 ---
 
