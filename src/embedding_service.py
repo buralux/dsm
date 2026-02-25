@@ -72,7 +72,12 @@ class DummyModel:
 class EmbeddingService:
     """Service pour générer et mettre en cache des embeddings"""
     
-    def __init__(self, model_name: str = "all-MiniLM-L6-v2", model: Optional[Union[str, DummyModel]] = None):
+    def __init__(
+        self,
+        model_name: str = "all-MiniLM-L6-v2",
+        model: Optional[Union[str, DummyModel]] = None,
+        verbose: bool = False,
+    ):
         """
         Initialise le service d'embeddings
         
@@ -81,6 +86,7 @@ class EmbeddingService:
             model: Modèle optionnel (pour tests/mocks)
         """
         self.model_name = model_name
+        self.verbose = verbose
         # Par défaut on démarre avec DummyModel (zéro téléchargement)
         self.model = model if model is not None else DummyModel(model_name)
         self.cache = {}  # Cache en mémoire pour les embeddings
@@ -90,7 +96,11 @@ class EmbeddingService:
         # Seed de cache pour stabilité des stats/tests
         self.cache[self._hash_text("__dsm_warmup__")] = [0.0] * self._dimension
 
-        print(f"✅ EmbeddingService initialisé (model_name: {model_name})")
+        self._log(f"✅ EmbeddingService initialisé (model_name: {model_name})")
+
+    def _log(self, message: str):
+        if self.verbose:
+            print(message)
     
     def _get_model(self):
         """
@@ -107,13 +117,13 @@ class EmbeddingService:
             and self._real_model is None
         ):
             try:
-                print(f"📥 Chargement du modèle réel: {self.model_name}")
+                self._log(f"📥 Chargement du modèle réel: {self.model_name}")
                 self._real_model = SentenceTransformer(self.model_name)
                 self._dimension = self._real_model.get_sentence_embedding_dimension()
                 self.model = self._real_model
-                print(f"✅ Modèle réel chargé: {self.model_name} (dimension: {self._dimension})")
+                self._log(f"✅ Modèle réel chargé: {self.model_name} (dimension: {self._dimension})")
             except Exception as e:
-                print(f"⚠️ Chargement modèle réel échoué, fallback DummyModel: {e}")
+                self._log(f"⚠️ Chargement modèle réel échoué, fallback DummyModel: {e}")
                 self._real_model = None
                 self.model = DummyModel(self.model_name)
                 self._dimension = self.model.dimension
@@ -231,7 +241,7 @@ class EmbeddingService:
     def clear_cache(self):
         """Vide le cache d'embeddings"""
         self.cache.clear()
-        print("🗑️ Cache d'embeddings vidé")
+        self._log("🗑️ Cache d'embeddings vidé")
     
     def save_cache_to_file(self, file_path: str):
         """
@@ -250,7 +260,7 @@ class EmbeddingService:
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(cache_serializable, f, indent=2, ensure_ascii=False)
             
-            print(f"✅ Cache sauvegardé dans {file_path}")
+            self._log(f"✅ Cache sauvegardé dans {file_path}")
         except Exception as e:
             print(f"❌ Erreur sauvegarde cache: {e}")
     
@@ -268,7 +278,7 @@ class EmbeddingService:
             # Restaurer les embeddings
             self.cache = cache_data
             
-            print(f"✅ Cache chargé depuis {file_path} ({len(cache_data)} embeddings)")
+            self._log(f"✅ Cache chargé depuis {file_path} ({len(cache_data)} embeddings)")
         except Exception as e:
             print(f"❌ Erreur chargement cache: {e}")
 

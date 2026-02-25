@@ -33,7 +33,7 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 # Instance globale ShardRouter (MVP simple)
 try:
     if ShardRouter:
-        daryl = ShardRouter()
+        daryl = ShardRouter(verbose=False)
         print(f"✅ DARYL ShardRouter initialisé ({len(daryl.shards)} shards)")
     else:
         daryl = None

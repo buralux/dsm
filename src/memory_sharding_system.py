@@ -187,9 +187,15 @@ class MemoryShard:
 class ShardRouter:
     """Routeur de shards - Gestion intelligente de la mémoire"""
     
-    def __init__(self, memory_dir: Optional[str] = None, shards_dir: Optional[str] = None):
+    def __init__(
+        self,
+        memory_dir: Optional[str] = None,
+        shards_dir: Optional[str] = None,
+        verbose: bool = False,
+    ):
         self.memory_dir = Path(memory_dir).expanduser() if memory_dir else MEMORY_DIR
         self.shards_dir = Path(shards_dir).expanduser() if shards_dir else (self.memory_dir / "shards")
+        self.verbose = verbose
         self.shards = {}
         self.shards_config = {
             "routing_config": {
@@ -216,17 +222,24 @@ class ShardRouter:
         
         # Phase 2: Initialiser les services
         try:
-            self.embedding_service = EmbeddingService()
-            self.semantic_search_engine = SemanticSearch(shards_directory=str(self.shards_dir))
+            self.embedding_service = EmbeddingService(verbose=self.verbose)
+            self.semantic_search_engine = SemanticSearch(
+                shards_directory=str(self.shards_dir),
+                verbose=self.verbose,
+            )
             self.memory_compressor = MemoryCompressor(shards_directory=str(self.shards_dir), similarity_threshold=0.9)
-            self.memory_cleaner = MemoryCleaner(shards_directory=str(self.shards_dir))
-            print("✅ Phase 2 services initialized")
+            self.memory_cleaner = MemoryCleaner(shards_directory=str(self.shards_dir), verbose=self.verbose)
+            self._log("✅ Phase 2 services initialized")
         except Exception as e:
-            print(f"⚠️ Phase 2 services not available: {e}")
+            self._log(f"⚠️ Phase 2 services not available: {e}")
             self.embedding_service = None
             self.semantic_search_engine = None
             self.memory_compressor = None
             self.memory_cleaner = None
+
+    def _log(self, message: str):
+        if self.verbose:
+            print(message)
 
     def load_all_shards(self):
         """Méthode publique pour recharger tous les shards."""
@@ -244,9 +257,9 @@ class ShardRouter:
             try:
                 shard = MemoryShard(shard_id, domain, shards_dir=self.shards_dir)
                 self.shards[shard_id] = shard
-                print(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
+                self._log(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
             except Exception as e:
-                print(f"  ❌ {shard_id}: Error loading - {e}")
+                self._log(f"  ❌ {shard_id}: Error loading - {e}")
 
         # Charger d'éventuels shards additionnels valides
         for shard_file in self.shards_dir.glob("*.json"):
@@ -255,16 +268,16 @@ class ShardRouter:
                 continue
             domain = shard_id.replace("shard_", "")
             if domain not in SHARD_DOMAINS:
-                print(f"  ⚠️ {shard_id}: ignored (unknown domain)")
+                self._log(f"  ⚠️ {shard_id}: ignored (unknown domain)")
                 continue
             try:
                 shard = MemoryShard(shard_id, domain, shards_dir=self.shards_dir)
                 self.shards[shard_id] = shard
-                print(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
+                self._log(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
             except Exception as e:
-                print(f"  ❌ {shard_id}: Error loading - {e}")
+                self._log(f"  ❌ {shard_id}: Error loading - {e}")
 
-        print(f"📊 Total shards loaded: {len(self.shards)}")
+        self._log(f"📊 Total shards loaded: {len(self.shards)}")
     
     def _find_best_shard_for_content(self, content):
         """
@@ -429,7 +442,7 @@ class ShardRouter:
             Liste des résultats
         """
         if self.semantic_search_engine is None:
-            print("❌ Semantic search not available")
+            self._log("❌ Semantic search not available")
             return []
         
         return self.semantic_search_engine.search(
@@ -453,7 +466,7 @@ class ShardRouter:
             Liste des résultats
         """
         if self.semantic_search_engine is None:
-            print("❌ Semantic search not available")
+            self._log("❌ Semantic search not available")
             return []
         
         return self.semantic_search_engine.hybrid_search(
@@ -475,7 +488,7 @@ class ShardRouter:
             Dictionnaire avec les stats de compression
         """
         if self.memory_compressor is None:
-            print("❌ Memory compressor not available")
+            self._log("❌ Memory compressor not available")
             return {"error": "Memory compressor not available"}
         
         if shard_id:
@@ -497,7 +510,7 @@ class ShardRouter:
             Dictionnaire avec les stats de nettoyage
         """
         if self.memory_cleaner is None:
-            print("❌ Memory cleaner not available")
+            self._log("❌ Memory cleaner not available")
             return {"error": "Memory cleaner not available"}
         
         if shard_id:
@@ -520,7 +533,7 @@ class ShardRouter:
             Liste des transactions similaires
         """
         if self.semantic_search_engine is None:
-            print("❌ Semantic search not available")
+            self._log("❌ Semantic search not available")
             return []
         
         return self.semantic_search_engine.find_similar_transactions(transaction_id, shard_id, top_k=top_k)
@@ -689,7 +702,7 @@ def main():
     SHARDS_DIR.mkdir(parents=True, exist_ok=True)
     
     # Initialiser le routeur de shards
-    router = ShardRouter()
+    router = ShardRouter(verbose=True)
     
     print("🚀 DARYL Sharding Memory v2.0")
     print("📁 Répertoire shards:", router.shards_dir)

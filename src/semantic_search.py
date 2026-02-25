@@ -21,7 +21,7 @@ except ImportError as e:
 class SemanticSearch:
     """Recherche sémantique basée sur les embeddings"""
     
-    def __init__(self, shards_directory="memory/shards", threshold=0.7, top_k=5):
+    def __init__(self, shards_directory="memory/shards", threshold=0.7, top_k=5, verbose: bool = False):
         """
         Initialise le module de recherche sémantique
         
@@ -33,22 +33,27 @@ class SemanticSearch:
         self.shards_dir = shards_directory
         self.threshold = threshold
         self.top_k = top_k
-        self.embedding_service = EmbeddingService()
+        self.verbose = verbose
+        self.embedding_service = EmbeddingService(verbose=self.verbose)
         self.shards_data = {}
         self._load_all_shards()
+
+    def _log(self, message: str):
+        if self.verbose:
+            print(message)
     
     def _load_all_shards(self):
         """Charge toutes les données de shards avec leurs embeddings"""
         shards_path = Path(self.shards_dir)
         
         if not shards_path.exists():
-            print(f"❌ Répertoire des shards non trouvé: {self.shards_dir}")
+            self._log(f"❌ Répertoire des shards non trouvé: {self.shards_dir}")
             return
         
         # Parcourir tous les fichiers .json
         shard_files = list(shards_path.glob("*.json"))
         
-        print(f"📁 Chargement de {len(shard_files)} shards depuis {self.shards_dir}")
+        self._log(f"📁 Chargement de {len(shard_files)} shards depuis {self.shards_dir}")
         
         for shard_file in shard_files:
             shard_id = shard_file.stem
@@ -72,9 +77,9 @@ class SemanticSearch:
                         "transactions": transactions
                     }
                     
-                    print(f"   ✅ {shard_id}: {len(transactions)} transactions chargées")
+                    self._log(f"   ✅ {shard_id}: {len(transactions)} transactions chargées")
             except Exception as e:
-                print(f"   ❌ {shard_id}: Erreur de chargement - {e}")
+                self._log(f"   ❌ {shard_id}: Erreur de chargement - {e}")
     
     def _cosine_similarity(self, vec_a: List[float], vec_b: List[float]) -> float:
         """
