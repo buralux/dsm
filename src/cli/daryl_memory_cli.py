@@ -204,15 +204,26 @@ def main():
 
     raw_args = sys.argv[1:]
     verbose = False
+    help_requested = False
     filtered_args = []
 
     for arg in raw_args:
         if arg in ("-v", "--verbose"):
             verbose = True
+        elif arg in ("-h", "--help"):
+            help_requested = True
         else:
             filtered_args.append(arg)
 
+    if help_requested and not filtered_args:
+        cmd_help([], verbose=verbose)
+        return
+
     if not filtered_args:
+        cmd_help([], verbose=verbose)
+        return
+
+    if help_requested:
         cmd_help([], verbose=verbose)
         return
 

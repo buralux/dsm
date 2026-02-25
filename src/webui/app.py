@@ -263,12 +263,17 @@ def api_docs():
 
 
 def serve():
-    """Entry point de déploiement (sans reload)."""
+    """Entry point de déploiement (sans reload par défaut)."""
+    import argparse
     import uvicorn
 
-    host = os.getenv("DSM_WEB_HOST", "0.0.0.0")
-    port = int(os.getenv("DSM_WEB_PORT", "8000"))
-    uvicorn.run("webui.app:app", host=host, port=port, reload=False)
+    parser = argparse.ArgumentParser(description="Run DSM Web UI server")
+    parser.add_argument("--host", default=os.getenv("DSM_WEB_HOST", "0.0.0.0"), help="Host bind address")
+    parser.add_argument("--port", type=int, default=int(os.getenv("DSM_WEB_PORT", "8000")), help="Host bind port")
+    parser.add_argument("--reload", action="store_true", help="Enable uvicorn auto-reload")
+    args = parser.parse_args()
+
+    uvicorn.run("webui.app:app", host=args.host, port=args.port, reload=args.reload)
 
 if __name__ == "__main__":
     import uvicorn
