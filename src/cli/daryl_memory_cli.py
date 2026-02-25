@@ -153,7 +153,8 @@ def cmd_status(args):
         name = shard_status["name"]
         count = shard_status["transactions_count"]
         importance = shard_status["importance_score"]
-        last = shard_status["last_updated"][:19]  # Just date et heure
+        last_updated = shard_status.get("last_updated")
+        last = last_updated[:19] if isinstance(last_updated, str) else "N/A"
 
         # Émoji basé sur le nombre de transactions
         if count == 0:
