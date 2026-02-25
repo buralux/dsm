@@ -12,6 +12,7 @@ Améliorations:
 import json
 import os
 import re
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -94,7 +95,7 @@ class MemoryShard:
                 self.transactions = data.get("transactions", [])
                 self.metadata.update(data.get("metadata", {}))
         except Exception as e:
-            print(f"❌ Error loading shard {self.shard_id}: {e}")
+            print(f"❌ Error loading shard {self.shard_id}: {e}", file=sys.stderr)
     
     def add_transaction(self, content, source="manual", importance=0.5, cross_refs=None):
         """
@@ -181,7 +182,7 @@ class MemoryShard:
             with open(shard_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"❌ Error saving shard {self.shard_id}: {e}")
+            print(f"❌ Error saving shard {self.shard_id}: {e}", file=sys.stderr)
 
 
 class ShardRouter:
@@ -239,7 +240,8 @@ class ShardRouter:
 
     def _log(self, message: str):
         if self.verbose:
-            print(message)
+            stream = sys.stderr if message.startswith(("❌", "⚠️")) else sys.stdout
+            print(message, file=stream)
 
     def load_all_shards(self):
         """Méthode publique pour recharger tous les shards."""

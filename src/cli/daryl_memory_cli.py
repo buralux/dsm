@@ -62,7 +62,7 @@ def cmd_add(args, verbose=False):
         print(f"   Source: {source}")
         print(f"   Importance: {importance}")
     else:
-        print(f"❌ Erreur: Impossible de trouver le shard cible")
+        print(f"❌ Erreur: Impossible de trouver le shard cible", file=sys.stderr)
 
 def cmd_query(args, verbose=False):
     """Rechercher des mémoires"""
@@ -128,7 +128,7 @@ def cmd_search(args, verbose=False):
     router = build_router(verbose=verbose)
 
     if shard_id not in router.shards:
-        print(f"❌ Erreur: Shard '{shard_id}' introuvable")
+        print(f"❌ Erreur: Shard '{shard_id}' introuvable", file=sys.stderr)
         return
 
     shard = router.shards[shard_id]
@@ -230,8 +230,8 @@ def main():
     elif command == "help":
         cmd_help(cmd_args, verbose=verbose)
     else:
-        print(f"❌ Commande inconnue: {command}")
-        print("Utilisez 'daryl-memory help' pour voir les commandes disponibles")
+        print(f"❌ Commande inconnue: {command}", file=sys.stderr)
+        print("Utilisez 'daryl-memory help' pour voir les commandes disponibles", file=sys.stderr)
 
 if __name__ == "__main__":
     main()

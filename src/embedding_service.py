@@ -8,6 +8,7 @@ Utilise sentence-transformers pour générer des embeddings sémantiques
 import json
 import hashlib
 import os
+import sys
 import numpy as np
 from datetime import datetime
 from pathlib import Path
@@ -100,7 +101,8 @@ class EmbeddingService:
 
     def _log(self, message: str):
         if self.verbose:
-            print(message)
+            stream = sys.stderr if message.startswith(("❌", "⚠️")) else sys.stdout
+            print(message, file=stream)
     
     def _get_model(self):
         """
@@ -166,7 +168,7 @@ class EmbeddingService:
             
             return embedding
         except Exception as e:
-            print(f"❌ Erreur génération embedding: {e}")
+            print(f"❌ Erreur génération embedding: {e}", file=sys.stderr)
             return None
     
     def batch_generate_embeddings(self, texts: List[str]) -> Dict[str, Optional[List[float]]]:
@@ -207,7 +209,7 @@ class EmbeddingService:
             
             return results
         except Exception as e:
-            print(f"❌ Erreur génération batch: {e}")
+            print(f"❌ Erreur génération batch: {e}", file=sys.stderr)
             return {}
     
     def _hash_text(self, text: str) -> str:
@@ -262,7 +264,7 @@ class EmbeddingService:
             
             self._log(f"✅ Cache sauvegardé dans {file_path}")
         except Exception as e:
-            print(f"❌ Erreur sauvegarde cache: {e}")
+            print(f"❌ Erreur sauvegarde cache: {e}", file=sys.stderr)
     
     def load_cache_from_file(self, file_path: str):
         """
@@ -280,7 +282,7 @@ class EmbeddingService:
             
             self._log(f"✅ Cache chargé depuis {file_path} ({len(cache_data)} embeddings)")
         except Exception as e:
-            print(f"❌ Erreur chargement cache: {e}")
+            print(f"❌ Erreur chargement cache: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":

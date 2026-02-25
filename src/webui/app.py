@@ -20,7 +20,7 @@ sys.path.insert(0, str(SRC_DIR))
 try:
     from memory_sharding_system import ShardRouter
 except ImportError as e:
-    print(f"❌ Erreur import ShardRouter: {e}")
+    print(f"❌ Erreur import ShardRouter: {e}", file=sys.stderr)
     ShardRouter = None
 
 # Configuration FastAPI
@@ -37,9 +37,9 @@ try:
         print(f"✅ DARYL ShardRouter initialisé ({len(daryl.shards)} shards)")
     else:
         daryl = None
-        print("⚠️ ShardRouter non disponible (import échoué)")
+        print("⚠️ ShardRouter non disponible (import échoué)", file=sys.stderr)
 except Exception as e:
-    print(f"❌ Erreur initialisation ShardRouter: {e}")
+    print(f"❌ Erreur initialisation ShardRouter: {e}", file=sys.stderr)
     daryl = None
 
 @app.get("/", response_class=HTMLResponse)

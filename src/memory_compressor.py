@@ -7,6 +7,7 @@ Consolide les transactions similaires et supprime les doublons
 
 import json
 import numpy as np
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -56,7 +57,7 @@ class MemoryCompressor:
                 with open(shard_file, 'r', encoding='utf-8') as f:
                     self.shards_data[shard_file.stem] = json.load(f)
             except Exception as e:
-                print(f"⚠️ Shard ignoré ({shard_file.name}): {e}")
+                print(f"⚠️ Shard ignoré ({shard_file.name}): {e}", file=sys.stderr)
     
     def _load_shard_data(self, shard_id: str) -> Optional[Dict]:
         """
@@ -78,7 +79,7 @@ class MemoryCompressor:
                 data = json.load(f)
                 return data
         except Exception as e:
-            print(f"❌ Erreur chargement shard {shard_id}: {e}")
+            print(f"❌ Erreur chargement shard {shard_id}: {e}", file=sys.stderr)
             return None
     
     def _find_similar_transactions(self, shard_data: Dict, transaction_id: str, top_k: int = 5) -> List[Dict]:
@@ -270,7 +271,7 @@ class MemoryCompressor:
             with open(shard_path, 'w', encoding='utf-8') as f:
                 json.dump(shard_data, f, indent=2, ensure_ascii=False)
         except Exception as e:
-            print(f"❌ Erreur sauvegarde shard {shard_id}: {e}")
+            print(f"❌ Erreur sauvegarde shard {shard_id}: {e}", file=sys.stderr)
     
     def compress_all_shards(self, force: bool = False) -> Dict[str, Dict[str, int]]:
         """
@@ -344,9 +345,9 @@ if __name__ == "__main__":
             print(f"   Avant compression: {result['total_before']}")
             print(f"   Après compression: {result['total_after']}")
         else:
-            print(f"   ❌ Erreur: {result['error']}")
+            print(f"   ❌ Erreur: {result['error']}", file=sys.stderr)
     else:
-        print("❌ Shard test non trouvé")
+        print("❌ Shard test non trouvé", file=sys.stderr)
     
     print()
     print("📊 Statistiques globales:")

@@ -6,6 +6,7 @@ Supprime les transactions expirées selon la configuration TTL
 """
 
 import json
+import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Dict, Any
@@ -56,7 +57,8 @@ class MemoryCleaner:
 
     def _log(self, message: str):
         if self.verbose:
-            print(message)
+            stream = sys.stderr if message.startswith(("❌", "⚠️")) else sys.stdout
+            print(message, file=stream)
     
     def _load_ttl_config(self) -> None:
         """Charge la configuration TTL depuis un fichier JSON"""

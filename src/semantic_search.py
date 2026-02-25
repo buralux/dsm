@@ -7,6 +7,7 @@ Utilise les embeddings et la similarité cosinus pour retrouver des informations
 
 import json
 import numpy as np
+import sys
 from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from pathlib import Path
@@ -40,7 +41,8 @@ class SemanticSearch:
 
     def _log(self, message: str):
         if self.verbose:
-            print(message)
+            stream = sys.stderr if message.startswith(("❌", "⚠️")) else sys.stdout
+            print(message, file=stream)
     
     def _load_all_shards(self):
         """Charge toutes les données de shards avec leurs embeddings"""
@@ -118,7 +120,7 @@ class SemanticSearch:
             # Assurer que le score est dans [-1, 1]
             return max(-1.0, min(1.0, similarity))
         except Exception as e:
-            print(f"❌ Erreur calcul similarité: {e}")
+            print(f"❌ Erreur calcul similarité: {e}", file=sys.stderr)
             return 0.0
     
     def search(
@@ -145,7 +147,7 @@ class SemanticSearch:
         query_embedding = self.embedding_service.generate_embedding(query_text)
         
         if query_embedding is None:
-            print(f"❌ Erreur génération embedding pour: {query_text}")
+            print(f"❌ Erreur génération embedding pour: {query_text}", file=sys.stderr)
             return []
         
         results = []
