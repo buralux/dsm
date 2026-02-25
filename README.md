@@ -1,38 +1,102 @@
 # DSM — Daryl Sharding Memory
 
-A **lightweight, Python-based semantic memory system** for building stateful AI agents with intelligent routing and cross-references.
+A **Python-based semantic memory system** for stateful AI agents, with domain sharding, semantic search, compression and TTL cleanup.
+
+---
+
+## ✅ Production Readiness
+
+- **Installable**: `pyproject.toml` + console scripts (`daryl-memory`, `dsm-webui`)
+- **Packaged**: wheel/sdist build via `python -m build`
+- **Deployable**: `Dockerfile` + `docker-compose.yml`
+- **Publishable**: GitHub release workflow for PyPI (`v*` tags)
+- **Credible**: CI pipeline, security policy, contribution guide, changelog, pre-commit
 
 ---
 
 ## 🚀 Quick Start
 
-### Installation
-```bash
-# Clone repository
-git clone https://github.com/daryl-labs/dsm.git
-cd dsm
+### Install (local editable)
 
-# Run system
-python3 src/memory_sharding_system.py
+```bash
+git clone <your-fork-or-repo-url>
+cd dsm
+python3 -m pip install -e ".[dev,web]"
 ```
 
-### CLI Usage
+### Install (package)
+
 ```bash
+python3 -m pip install daryl-sharding-memory
+```
+
+### CLI usage
+
+```bash
+# Check system status
+daryl-memory status
+
 # Add memory with automatic routing
-python3 src/cli/daryl_memory_cli.py add "Projet actif: Finaliser GitHub release" --importance 0.9
+daryl-memory add "Projet actif: Finaliser GitHub release" --importance 0.9
 
 # Search across all shards
-python3 src/cli/daryl_memory_cli.py query "GitHub" --limit 5
+daryl-memory query "GitHub" --limit 5
 
-# Search in specific shard
-python3 src/cli/daryl_memory_cli.py search shard_projects "GitHub"
+# Search in a specific shard
+daryl-memory search shard_projects "GitHub"
 
-# Check system status
-python3 src/cli/daryl_memory_cli.py status
-
-# Get help
-python3 src/cli/daryl_memory_cli.py help
+# Verbose mode
+daryl-memory --verbose status
 ```
+
+---
+
+## 📦 Packaging
+
+Build distributables:
+
+```bash
+python3 -m pip install -U build
+python3 -m build
+```
+
+Artifacts are generated in `dist/` (`.whl` + `.tar.gz`).
+
+---
+
+## 🚢 Deployment
+
+### Docker
+
+```bash
+docker build -t dsm:latest .
+docker run --rm -p 8000:8000 -e DSM_MEMORY_DIR=/data/memory -v "$(pwd)/memory:/data/memory" dsm:latest
+```
+
+### Docker Compose
+
+```bash
+docker compose up --build
+```
+
+---
+
+## 🌍 Publishing
+
+Manual publication flow:
+
+```bash
+python3 -m pip install -U build twine
+python3 -m build
+twine check dist/*
+twine upload dist/*
+```
+
+Automated flow:
+
+- Create a tag `vX.Y.Z`
+- Push the tag
+- GitHub Action `Publish to PyPI` publishes the package
 
 ---
 
@@ -40,18 +104,25 @@ python3 src/cli/daryl_memory_cli.py help
 
 ```
 dsm/
+├── pyproject.toml                  # Packaging metadata
+├── Dockerfile                      # Container deployment
+├── docker-compose.yml              # Local deployment
+├── .github/workflows/
+│   ├── ci.yml                      # CI (tests + build)
+│   └── release-pypi.yml            # Publish on v* tags
 ├── memory/
-│   └── shards/           # 5 domain-specific memory stores (JSON)
+│   └── shards/                     # 5 domain-specific memory stores (JSON)
 ├── src/
 │   ├── memory_sharding_system.py   # Core sharding logic
-│   ├── link_validator.py          # Cross-reference validation
-│   └── cli/
-│       └── daryl_memory_cli.py    # Command-line interface
+│   ├── semantic_search.py          # Semantic retrieval
+│   ├── memory_compressor.py        # Compression / deduplication
+│   ├── memory_cleaner.py           # TTL cleanup
+│   ├── cli/
+│   │   └── daryl_memory_cli.py     # Command-line interface
+│   └── webui/
+│       └── app.py                  # FastAPI web interface
 ├── docs/
-│   ├── SECURITY_CONSIDERATIONS.md  # Security model
-│   ├── spec_global_memory_architecture.md
-│   └── daryl_sharding_critique_analysis.md
-└── docs/                           # Specs, API, security
+└── tests/
 ```
 
 ---
@@ -130,16 +201,16 @@ See `docs/SECURITY_CONSIDERATIONS.md` for complete security model:
 ## 🚧 Roadmap
 
 ### Phase 1: Core Improvements (v1.1)
-- [ ] **Semantic search** - Beyond full-text (embeddings, cosine similarity)
-- [ ] **Memory compression** - Efficient storage for long-running agents
-- [ ] **Time-based expiry** - Automatic cleanup of old low-importance memories
+- [x] **Semantic search** - Beyond full-text (embeddings, cosine similarity)
+- [x] **Memory compression** - Efficient storage for long-running agents
+- [x] **Time-based expiry** - Automatic cleanup of old low-importance memories
 - [ ] **Bulk operations** - Import/export multiple transactions at once
 
 ### Phase 2: Integration (v1.2)
-- [ ] **Web UI** - Visual dashboard for memory management
+- [x] **Web UI** - Visual dashboard for memory management
 - [ ] **REST API** - HTTP endpoints for external systems
 - [ ] **Multi-language support** - Translations (EN, FR, etc.)
-- [ ] **Docker container** - Easy deployment
+- [x] **Docker container** - Easy deployment
 
 ### Phase 3: Advanced Features (v2.0)
 - [ ] **Memory consolidation** - Automatic summarization and merging
@@ -157,8 +228,8 @@ Apache-2.0. See [LICENSE](LICENSE).
 
 ## 🤝 Contributing
 
-Feedback and contributions welcome. See [daryl.md](https://daryl.md) and issues on GitHub.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, standards and PR workflow.
 
 ---
 
-*DARYL-LABS — https://daryl.md — https://github.com/daryl-labs/dsm*
+For security disclosures, see [SECURITY.md](SECURITY.md).

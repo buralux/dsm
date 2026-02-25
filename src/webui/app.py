@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
+import os
 import sys
 
 # Ajouter src/ au PYTHONPATH
@@ -259,6 +260,15 @@ def api_docs():
             "get_all_shards_status()": "Statistiques globales"
         }
     }
+
+
+def serve():
+    """Entry point de déploiement (sans reload)."""
+    import uvicorn
+
+    host = os.getenv("DSM_WEB_HOST", "0.0.0.0")
+    port = int(os.getenv("DSM_WEB_PORT", "8000"))
+    uvicorn.run("webui.app:app", host=host, port=port, reload=False)
 
 if __name__ == "__main__":
     import uvicorn

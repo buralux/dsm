@@ -9,7 +9,7 @@ import json
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 # Import absolu pour éviter les problèmes de module relatif
 try:
@@ -24,7 +24,7 @@ class MemoryCleaner:
     def __init__(
         self,
         shards_directory: str = "memory/shards",
-        ttl_config_file: str = "src/config/ttl_config.json",
+        ttl_config_file: Optional[str] = None,
         verbose: bool = False,
     ):
         """
@@ -35,7 +35,10 @@ class MemoryCleaner:
             ttl_config_file: Fichier de configuration TTL
         """
         self.shards_dir = shards_directory
-        self.ttl_config_file = ttl_config_file
+        if ttl_config_file is None:
+            self.ttl_config_file = str(Path(shards_directory).parent / "ttl_config.json")
+        else:
+            self.ttl_config_file = ttl_config_file
         self.verbose = verbose
         self.ttl_config: Dict[str, Dict[str, int]] = {
             "shard_projects": {"ttl_days": 30, "max_transactions": 100},
