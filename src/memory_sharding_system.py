@@ -25,7 +25,9 @@ except ImportError:
     raise ImportError("Phase 2 modules not available. Vérifiez l'installation.")
 
 # Configuration
-MEMORY_DIR = Path("/home/buraluxtr/clawd/memory")
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_MEMORY_DIR = PROJECT_ROOT / "memory"
+MEMORY_DIR = Path(os.getenv("DSM_MEMORY_DIR", str(DEFAULT_MEMORY_DIR))).expanduser()
 SHARDS_DIR = MEMORY_DIR / "shards"
 SHARD_CONFIG_FILE = SHARDS_DIR / "shard_config.json"
 
@@ -61,9 +63,12 @@ SHARD_DOMAINS = {
 class MemoryShard:
     """Représente un shard de mémoire"""
     
-    def __init__(self, shard_id, domain):
+    def __init__(self, shard_id, domain, shards_dir=None):
+        if domain not in SHARD_DOMAINS:
+            raise ValueError(f"Domaine invalide pour shard '{shard_id}': {domain}")
         self.shard_id = shard_id
         self.domain = domain
+        self.shards_dir = Path(shards_dir) if shards_dir else SHARDS_DIR
         self.config = SHARD_DOMAINS[domain]
         self.transactions = []
         self.metadata = {
@@ -75,7 +80,7 @@ class MemoryShard:
     
     def _load(self):
         """Charge les transactions depuis le fichier JSON"""
-        shard_path = SHARDS_DIR / f"{self.shard_id}.json"
+        shard_path = self.shards_dir / f"{self.shard_id}.json"
         
         if not shard_path.exists():
             # Créer le shard avec la configuration par défaut
@@ -157,7 +162,8 @@ class MemoryShard:
     
     def _save(self):
         """Sauvegarde les données du shard"""
-        shard_path = SHARDS_DIR / f"{self.shard_id}.json"
+        self.shards_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = self.shards_dir / f"{self.shard_id}.json"
         
         data = {
             "config": {
@@ -181,7 +187,9 @@ class MemoryShard:
 class ShardRouter:
     """Routeur de shards - Gestion intelligente de la mémoire"""
     
-    def __init__(self):
+    def __init__(self, memory_dir: Optional[str] = None, shards_dir: Optional[str] = None):
+        self.memory_dir = Path(memory_dir).expanduser() if memory_dir else MEMORY_DIR
+        self.shards_dir = Path(shards_dir).expanduser() if shards_dir else (self.memory_dir / "shards")
         self.shards = {}
         self.shards_config = {
             "routing_config": {
@@ -191,61 +199,71 @@ class ShardRouter:
                 "max_cross_refs": 3,
                 "whitelist_patterns": [
                     r"voir shard\s+(\w+)",
-                    r"shard:\s*(\w+)"
-                r"shard\s*(\w+)"
-                r"@\s*(\w+)"
-                r"connecté avec\s*@\s*(\w+)"
-                r"relation\s*@\s*(\w+)"
-                r"expert\s*@\s*(\w+)"
-                    r"builder\s*@\s*(\w+)"
-                r"contact\s*@\s*(\w+)"
-                r"discussion\s*avec\s*@\s*(\w+)"
+                    r"shard:\s*(\w+)",
+                    r"shard\s*(\w+)",
+                    r"@\s*(\w+)",
+                    r"connecté avec\s*@\s*(\w+)",
+                    r"relation\s*@\s*(\w+)",
+                    r"expert\s*@\s*(\w+)",
+                    r"builder\s*@\s*(\w+)",
+                    r"contact\s*@\s*(\w+)",
+                    r"discussion\s*avec\s*@\s*(\w+)",
                     r"réponse\s*à\s*@\s*(\w+)"
                 ]
             }
         }
-        self._load_all_shards()
+        self.load_all_shards()
         
         # Phase 2: Initialiser les services
         try:
             self.embedding_service = EmbeddingService()
-            self.semantic_search = SemanticSearch(shards_directory=str(SHARDS_DIR))
-            self.memory_compressor = MemoryCompressor(shards_directory=str(SHARDS_DIR), similarity_threshold=0.9)
-            self.memory_cleaner = MemoryCleaner(shards_directory=str(SHARDS_DIR))
+            self.semantic_search_engine = SemanticSearch(shards_directory=str(self.shards_dir))
+            self.memory_compressor = MemoryCompressor(shards_directory=str(self.shards_dir), similarity_threshold=0.9)
+            self.memory_cleaner = MemoryCleaner(shards_directory=str(self.shards_dir))
             print("✅ Phase 2 services initialized")
         except Exception as e:
             print(f"⚠️ Phase 2 services not available: {e}")
             self.embedding_service = None
-            self.semantic_search = None
+            self.semantic_search_engine = None
             self.memory_compressor = None
             self.memory_cleaner = None
+
+    def load_all_shards(self):
+        """Méthode publique pour recharger tous les shards."""
+        self._load_all_shards()
+        return self.shards
     
     def _load_all_shards(self):
         """Charge tous les shards depuis les fichiers JSON"""
-        if not SHARDS_DIR.exists():
-            SHARDS_DIR.mkdir(parents=True, exist_ok=True)
-            print(f"✅ Created shards directory: {SHARDS_DIR}")
-        
-        shard_files = list(SHARDS_DIR.glob("*.json"))
-        print(f"📁 Loading {len(shard_files)} shards from {SHARDS_DIR}")
-        
-        for shard_file in shard_files:
-            shard_id = shard_file.stem
-            domain = shard_id.replace("shard_", "")
+        self.shards_dir.mkdir(parents=True, exist_ok=True)
+        self.shards = {}
+
+        # Charger / créer les 5 shards standards
+        for domain in SHARD_DOMAINS.keys():
+            shard_id = f"shard_{domain}"
             try:
-                with open(shard_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                    # Créer l'instance MemoryShard
-                    shard = MemoryShard(shard_id, domain)
-                    shard.transactions = data.get("transactions", [])
-                    shard.metadata.update(data.get("metadata", {}))
-                    
-                    self.shards[shard_id] = shard
-                    print(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
+                shard = MemoryShard(shard_id, domain, shards_dir=self.shards_dir)
+                self.shards[shard_id] = shard
+                print(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
             except Exception as e:
                 print(f"  ❌ {shard_id}: Error loading - {e}")
-        
+
+        # Charger d'éventuels shards additionnels valides
+        for shard_file in self.shards_dir.glob("*.json"):
+            shard_id = shard_file.stem
+            if shard_id in self.shards:
+                continue
+            domain = shard_id.replace("shard_", "")
+            if domain not in SHARD_DOMAINS:
+                print(f"  ⚠️ {shard_id}: ignored (unknown domain)")
+                continue
+            try:
+                shard = MemoryShard(shard_id, domain, shards_dir=self.shards_dir)
+                self.shards[shard_id] = shard
+                print(f"  ✅ {shard_id}: {len(shard.transactions)} transactions")
+            except Exception as e:
+                print(f"  ❌ {shard_id}: Error loading - {e}")
+
         print(f"📊 Total shards loaded: {len(self.shards)}")
     
     def _find_best_shard_for_content(self, content):
@@ -280,6 +298,11 @@ class ShardRouter:
         
         best_shard_id = max(shard_scores, key=lambda x: shard_scores[x])
         best_score = shard_scores[best_shard_id]
+
+        # Fallback stable: aucun signal => technique
+        if best_score <= 0 and "shard_technical" in shard_scores:
+            best_shard_id = "shard_technical"
+            best_score = shard_scores[best_shard_id]
         
         # Filtrer par seuil d'importance
         threshold = self.shards_config["routing_config"]["importance_threshold"]
@@ -307,27 +330,30 @@ class ShardRouter:
             Liste des shard_id référencés
         """
         cross_refs = []
+        seen = set()
         patterns = self.shards_config["routing_config"]["whitelist_patterns"]
         
         for pattern in patterns:
             matches = re.findall(pattern, content, re.IGNORECASE)
             for match in matches:
-                # Extraire l'ID du shard (groupe 1: \\w+)
-                shard_match = re.search(r'(shard_|\w+)', match)
-                if shard_match:
-                    shard_id = shard_match.group(1)
-                    
-                    # Normaliser l'ID du shard
-                    shard_id = shard_id.lower()
-                    
-                    # Vérifier si c'est un shard valide
-                    for valid_shard_id in self.shards.keys():
-                        if valid_shard_id.lower() == shard_id:
-                            cross_refs.append(valid_shard_id)
-                            break
-        
-        # Supprimer les doublons
-        cross_refs = list(set(cross_refs))
+                token = match[0] if isinstance(match, tuple) else match
+                token = str(token).strip().lower()
+                if not token:
+                    continue
+
+                if token.startswith("shard_"):
+                    shard_id = token
+                elif token.startswith("shard"):
+                    domain = token.replace("shard", "", 1).strip("_ :")
+                    shard_id = f"shard_{domain}" if domain else ""
+                elif token in SHARD_DOMAINS:
+                    shard_id = f"shard_{token}"
+                else:
+                    shard_id = f"shard_{token}"
+
+                if shard_id in self.shards and shard_id not in seen:
+                    seen.add(shard_id)
+                    cross_refs.append(shard_id)
         
         return cross_refs
     
@@ -378,19 +404,14 @@ class ShardRouter:
                 return []
             shard = self.shards[shard_id]
             results = shard.query(query_text, limit=limit)
-            for r in results:
-                r["shard_id"] = shard_id
-                r["shard_name"] = shard.config["name"]
-            return results
+            return [dict(r, shard_id=shard_id, shard_name=shard.config["name"]) for r in results]
         else:
             # Recherche dans tous les shards (priorité par importance)
             all_results = []
             for sid, shard in sorted(self.shards.items(), key=lambda x: x[1].metadata.get("importance_score", 0), reverse=True):
                 shard_results = shard.query(query_text, limit=limit)
                 for r in shard_results:
-                    r["shard_id"] = sid
-                    r["shard_name"] = shard.config["name"]
-                all_results.extend(shard_results)
+                    all_results.append(dict(r, shard_id=sid, shard_name=shard.config["name"]))
             
             return all_results[:limit]
     
@@ -407,11 +428,16 @@ class ShardRouter:
         Returns:
             Liste des résultats
         """
-        if self.semantic_search is None:
+        if self.semantic_search_engine is None:
             print("❌ Semantic search not available")
             return []
         
-        return self.semantic_search.search(query_text, shard_id=shard_id)
+        return self.semantic_search_engine.search(
+            query_text,
+            shard_id=shard_id,
+            threshold=threshold,
+            top_k=top_k,
+        )
     
     def hybrid_search(self, query_text, shard_id=None, top_k=5, threshold=0.7):
         """
@@ -426,11 +452,16 @@ class ShardRouter:
         Returns:
             Liste des résultats
         """
-        if self.semantic_search is None:
+        if self.semantic_search_engine is None:
             print("❌ Semantic search not available")
             return []
         
-        return self.semantic_search.hybrid_search(query_text, shard_id=shard_id)
+        return self.semantic_search_engine.hybrid_search(
+            query_text,
+            shard_id=shard_id,
+            threshold=threshold,
+            top_k=top_k,
+        )
     
     def compress_memory(self, shard_id=None, force=False):
         """
@@ -488,11 +519,11 @@ class ShardRouter:
         Returns:
             Liste des transactions similaires
         """
-        if self.semantic_search is None:
+        if self.semantic_search_engine is None:
             print("❌ Semantic search not available")
             return []
         
-        return self.semantic_search.find_similar_transactions(transaction_id, shard_id, top_k=top_k)
+        return self.semantic_search_engine.find_similar_transactions(transaction_id, shard_id, top_k=top_k)
     
     def cross_shard_search(self, query_text):
         """
@@ -506,14 +537,26 @@ class ShardRouter:
         """
         # 1. Recherche sémantique
         semantic_results = []
-        if self.semantic_search:
-            semantic_results = self.semantic_search.search(query_text)
+        if self.semantic_search_engine:
+            semantic_results = self.semantic_search_engine.search(query_text)
         
         # 2. Recherche full-text
         text_results = []
         for shard_id, shard in self.shards.items():
             results = shard.query(query_text, limit=3)
-            text_results.extend(results)
+            for tx in results:
+                text_results.append({
+                    "transaction_id": tx.get("id", ""),
+                    "id": tx.get("id", ""),
+                    "content": tx.get("content", ""),
+                    "importance": tx.get("importance", 0),
+                    "timestamp": tx.get("timestamp", ""),
+                    "source": tx.get("source", ""),
+                    "shard_id": shard_id,
+                    "shard_name": shard.config["name"],
+                    "similarity": 0.0,
+                    "score": 0.0,
+                })
         
         # 3. Fusionner (déduplication)
         seen_ids = set()
@@ -521,18 +564,20 @@ class ShardRouter:
         
         # Ajouter les résultats sémantiques
         for r in semantic_results:
-            if r["transaction_id"] not in seen_ids:
+            tx_id = r.get("transaction_id") or r.get("id")
+            if tx_id and tx_id not in seen_ids:
                 cross_shard_results.append(r)
-                seen_ids.add(r["transaction_id"])
+                seen_ids.add(tx_id)
         
         # Ajouter les résultats full-text (si pas déjà vus)
         for r in text_results:
-            if r["transaction_id"] not in seen_ids:
+            tx_id = r.get("transaction_id") or r.get("id")
+            if tx_id and tx_id not in seen_ids:
                 cross_shard_results.append(r)
-                seen_ids.add(r["transaction_id"])
+                seen_ids.add(tx_id)
         
         # 4. Trier par similarité sémantique (prioritaire)
-        cross_shard_results.sort(key=lambda x: x.get("similarity", 0), reverse=True)
+        cross_shard_results.sort(key=lambda x: x.get("similarity", x.get("score", 0)), reverse=True)
         
         return cross_shard_results[:10]
     
@@ -600,7 +645,8 @@ class ShardRouter:
         }
         
         # Sauvegarder le résumé
-        summary_file = MEMORY_DIR / "shards_summary.json"
+        self.memory_dir.mkdir(parents=True, exist_ok=True)
+        summary_file = self.memory_dir / "shards_summary.json"
         with open(summary_file, 'w', encoding='utf-8') as f:
             json.dump(summary, f, indent=2, ensure_ascii=False)
         
@@ -614,6 +660,14 @@ class ShardRouter:
             Dictionnaire {shard_id: MemoryShard}
         """
         return self.shards
+
+    def get_shard_by_id(self, shard_id):
+        """Retourne un shard par ID ou None."""
+        return self.shards.get(shard_id)
+
+    def list_shards(self):
+        """Retourne la liste des shards avec leurs stats."""
+        return self.get_all_shards_status()
     
     def get_shard_by_domain(self, domain):
         """
@@ -638,11 +692,11 @@ def main():
     router = ShardRouter()
     
     print("🚀 DARYL Sharding Memory v2.0")
-    print("📁 Répertoire shards:", SHARDS_DIR)
+    print("📁 Répertoire shards:", router.shards_dir)
     print()
     print("✅ Phase 2 Integration:")
     print("   - EmbeddingService: {}".format("✅" if router.embedding_service else "❌"))
-    print("   - SemanticSearch: {}".format("✅" if router.semantic_search else "❌"))
+    print("   - SemanticSearch: {}".format("✅" if router.semantic_search_engine else "❌"))
     print("   - MemoryCompressor: {}".format("✅" if router.memory_compressor else "❌"))
     print("   - MemoryCleaner: {}".format("✅" if router.memory_cleaner else "❌"))
     print()
@@ -651,7 +705,7 @@ def main():
     print("📊 Shards Status:")
     for status in router.get_all_shards_status()[:5]:
         print(f"  • [{status['domain']}] {status['name']}: {status['transactions_count']} tx (score: {status['importance_score']:.2f})")
-    print(f"  ... + {len(router.shards) - 5} more shards")
+    print(f"  ... + {max(len(router.shards) - 5, 0)} more shards")
     print()
     
     # Exemple d'utilisation

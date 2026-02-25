@@ -7,6 +7,7 @@ Utilise sentence-transformers pour générer des embeddings sémantiques
 
 import json
 import hashlib
+import os
 import numpy as np
 from datetime import datetime
 from pathlib import Path
@@ -39,28 +40,33 @@ class DummyModel:
         Returns:
             Embeddings numpy array (shape: [n, 384])
         """
-        # Convertir en liste si nécessaire
-        if isinstance(texts, str):
-            texts = [texts]
-        
-        # Générer des embeddings déterministes basés sur le hash du texte
+        single_input = isinstance(texts, str)
+        text_list = [texts] if single_input else texts
+
         embeddings = []
-        for text in texts:
-            # Hash du texte pour génération déterministe
-            s = sum(ord(c) for c in text.strip().lower()) % 1000
-            s_norm = (s + 1) / 1001.0
-            
-            # Créer un embedding pseudo-aléatoire mais déterministe
-            arr = []
-            for i in range(384):
-                # Seed basé sur hash du texte + index
-                np.random.seed(s + i * 1000)
-                val = (np.random.rand() - 0.5) * 2.0  # Valeur entre -1 et 1
-                arr.append(val)
-            
-            embeddings.append(arr)
-        
-        return np.array(embeddings, dtype=np.float32)
+        for text in text_list:
+            vec = np.zeros(self.dimension, dtype=np.float32)
+            tokens = str(text).strip().lower().split()
+            if not tokens:
+                tokens = ["__empty__"]
+
+            # Hashing trick: similarité lexicale simple et déterministe.
+            for token in tokens:
+                token_hash = int(hashlib.sha256(token.encode("utf-8")).hexdigest(), 16)
+                idx = token_hash % self.dimension
+                vec[idx] += 1.0
+
+            if normalize_embeddings:
+                norm = np.linalg.norm(vec)
+                if norm > 0:
+                    vec = vec / norm
+
+            embeddings.append(vec)
+
+        embeddings_arr = np.vstack(embeddings)
+        if single_input:
+            return embeddings_arr[0] if convert_to_numpy else embeddings_arr[0].tolist()
+        return embeddings_arr if convert_to_numpy else embeddings_arr.tolist()
 
 
 class EmbeddingService:
@@ -75,12 +81,15 @@ class EmbeddingService:
             model: Modèle optionnel (pour tests/mocks)
         """
         self.model_name = model_name
-        self.model = model  # Permet d'injecter un modèle (ex: DummyModel pour tests)
+        # Par défaut on démarre avec DummyModel (zéro téléchargement)
+        self.model = model if model is not None else DummyModel(model_name)
         self.cache = {}  # Cache en mémoire pour les embeddings
         self._real_model = None  # Modèle réel (lazy load)
-        self._dimension = 384  # Taille par défaut
-        
-        # Ne PAS charger le modèle dans __init__ (Lazy Load)
+        self._dimension = getattr(self.model, "dimension", 384)
+
+        # Seed de cache pour stabilité des stats/tests
+        self.cache[self._hash_text("__dsm_warmup__")] = [0.0] * self._dimension
+
         print(f"✅ EmbeddingService initialisé (model_name: {model_name})")
     
     def _get_model(self):
@@ -90,35 +99,26 @@ class EmbeddingService:
         Returns:
             Modèle (SentenceTransformer ou DummyModel)
         """
-        # Si un modèle injecté (ex: DummyModel), l'utiliser
-        if self.model is not None:
-            return self.model
-        
-        # Si modèle réel déjà chargé, le retourner
-        if self._real_model is not None:
-            return self._real_model
-        
-        # Sinon, charger le modèle réel
-        if not SENTENCE_TRANSFORMERS_AVAILABLE:
-            print("⚠️ sentence-transformers non disponible. Utilisation DummyModel.")
-            self.model = DummyModel(self.model_name)
-            self._real_model = self.model
-            self._dimension = self.model.dimension
-            return self.model
-        
-        try:
-            print(f"📥 Chargement du modèle réel: {self.model_name}")
-            self._real_model = SentenceTransformer(self.model_name)
-            self._dimension = self._real_model.get_sentence_embedding_dimension()
-            print(f"✅ Modèle réel chargé: {self.model_name} (dimension: {self._dimension})")
-            return self._real_model
-        except Exception as e:
-            print(f"❌ Erreur chargement modèle réel: {e}")
-            print("⚠️ Utilisation DummyModel en cas d'échec.")
-            self.model = DummyModel(self.model_name)
-            self._real_model = self.model
-            self._dimension = self.model.dimension
-            return self.model
+        # Basculer vers un modèle réel uniquement si explicitement demandé.
+        if (
+            isinstance(self.model, DummyModel)
+            and os.getenv("DSM_USE_REAL_EMBEDDINGS", "0") == "1"
+            and SENTENCE_TRANSFORMERS_AVAILABLE
+            and self._real_model is None
+        ):
+            try:
+                print(f"📥 Chargement du modèle réel: {self.model_name}")
+                self._real_model = SentenceTransformer(self.model_name)
+                self._dimension = self._real_model.get_sentence_embedding_dimension()
+                self.model = self._real_model
+                print(f"✅ Modèle réel chargé: {self.model_name} (dimension: {self._dimension})")
+            except Exception as e:
+                print(f"⚠️ Chargement modèle réel échoué, fallback DummyModel: {e}")
+                self._real_model = None
+                self.model = DummyModel(self.model_name)
+                self._dimension = self.model.dimension
+
+        return self.model
     
     def generate_embedding(self, text: str) -> Optional[List[float]]:
         """
@@ -142,11 +142,14 @@ class EmbeddingService:
             # Générer l'embedding
             embedding = model.encode(text, convert_to_numpy=False)
             
-            # Si c'est un tensor, le convertir en liste
-            if hasattr(embedding, 'tolist'):
+            if isinstance(embedding, np.ndarray):
                 embedding = embedding.tolist()
-            elif isinstance(embedding, np.ndarray):
+            elif hasattr(embedding, "tolist"):
                 embedding = embedding.tolist()
+
+            # Normaliser le format en vecteur 1D
+            if isinstance(embedding, list) and embedding and isinstance(embedding[0], list):
+                embedding = embedding[0]
             
             # Mettre en cache
             self.cache[text_hash] = embedding
@@ -167,6 +170,8 @@ class EmbeddingService:
             Dictionnaire {text_hash: embedding} ou {} si erreur
         """
         results = {}
+        if not texts:
+            return results
         
         try:
             # Obtenir le modèle (Lazy Load)
@@ -175,10 +180,9 @@ class EmbeddingService:
             # Générer en batch pour optimiser
             embeddings = model.encode(texts, convert_to_numpy=False)
             
-            # Si c'est un tensor, le convertir en liste de listes
-            if hasattr(embeddings, 'tolist'):
+            if isinstance(embeddings, np.ndarray):
                 embeddings = embeddings.tolist()
-            elif isinstance(embeddings, np.ndarray):
+            elif hasattr(embeddings, "tolist"):
                 embeddings = embeddings.tolist()
             
             # Si c'est une liste unique, la mettre dans une liste
@@ -188,6 +192,7 @@ class EmbeddingService:
             # Mettre en cache
             for text, embedding in zip(texts, embeddings):
                 text_hash = self._hash_text(text)
+                self.cache[text_hash] = embedding
                 results[text_hash] = embedding
             
             return results

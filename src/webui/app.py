@@ -6,28 +6,29 @@ FastAPI minimaliste pour exposer les fonctions Phase 2
 """
 
 from fastapi import FastAPI, Request, Query
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 import sys
 
-# Ajouter le répertoire parent au PYTHONPATH
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# Ajouter src/ au PYTHONPATH
+BASE_DIR = Path(__file__).resolve().parent
+SRC_DIR = BASE_DIR.parent
+sys.path.insert(0, str(SRC_DIR))
 
 try:
-    from src.memory_sharding_system import ShardRouter
+    from memory_sharding_system import ShardRouter
 except ImportError as e:
     print(f"❌ Erreur import ShardRouter: {e}")
     ShardRouter = None
 
 # Configuration FastAPI
-app = FastAPI(title="DARYL Web UI", version="0.1")
+app = FastAPI(title="DARYL Web UI", version="0.1", docs_url="/docs", redoc_url=None)
 
 # Chemins
-BASE_DIR = Path(__file__).resolve().parent
-templates = Jinja2Templates(directory=str(BASE_DIR / "src/webui/templates"))
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "src/webui/static")), name="static")
+templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # Instance globale ShardRouter (MVP simple)
 try:
@@ -88,8 +89,7 @@ def shards():
         return {"error": "DARYL ShardRouter non disponible"}
     
     try:
-        shards_list = daryl.list_shards()
-        
+        shards_list = daryl.get_all_shards_status()
         return {
             "shards": shards_list,
             "total": len(shards_list)
@@ -107,13 +107,20 @@ def shard_detail(shard_id: str):
     
     try:
         shard = daryl.get_shard_by_id(shard_id)
-        
+
         if not shard:
             return {"error": f"Shard {shard_id} introuvable"}
-        
-        shard_data = shard.to_dict()
-        transactions = shard_data.get("transactions", [])
-        
+
+        shard_data = {
+            "id": shard.shard_id,
+            "domain": shard.domain,
+            "name": shard.config.get("name"),
+            "description": shard.config.get("description"),
+            "keywords": shard.config.get("keywords", []),
+            "metadata": shard.metadata,
+        }
+        transactions = shard.transactions
+
         return {
             "shard": shard_data,
             "transactions_count": len(transactions),
@@ -136,7 +143,7 @@ def search(q: str = Query(..., min_length=1), min_score: float = 0.0, top_k: int
     try:
         # Méthode de recherche sémantique
         if hasattr(daryl, "semantic_search"):
-            results = daryl.semantic_search(query, threshold=min_score, top_k=top_k)
+            results = daryl.semantic_search(q, threshold=min_score, top_k=top_k)
         else:
             return {"error": "Méthode semantic_search() non disponible"}
         
@@ -164,7 +171,7 @@ def hybrid(q: str = Query(..., min_length=1), min_score: float = 0.0, top_k: int
     try:
         # Méthode de recherche hybride
         if hasattr(daryl, "hybrid_search"):
-            results = daryl.hybrid_search(query, threshold=min_score, top_k=top_k)
+            results = daryl.hybrid_search(q, threshold=min_score, top_k=top_k)
         else:
             return {"error": "Méthode hybrid_search() non disponible"}
         
@@ -222,8 +229,8 @@ def cleanup():
     except Exception as e:
         return {"error": f"Erreur nettoyage TTL: {e}"}
 
-@app.get("/docs")
-def docs():
+@app.get("/api-docs")
+def api_docs():
     """
     Documentation API
     """
@@ -239,7 +246,8 @@ def docs():
             "GET /hybrid": "Recherche hybride (query, min_score, top_k)",
             "GET /compress": "Compression de mémoire",
             "GET /cleanup": "Nettoyage TTL",
-            "GET /docs": "Documentation API"
+            "GET /api-docs": "Documentation API",
+            "GET /docs": "OpenAPI Swagger UI"
         },
         "shard_router_methods": {
             "semantic_search()": "Recherche vectorielle",
@@ -259,4 +267,4 @@ if __name__ == "__main__":
     print("📚 Documentation: http://localhost:8000/docs")
     print("⚡ Reloading activé (--reload)")
     
-    uvicorn.run("src.webui.app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

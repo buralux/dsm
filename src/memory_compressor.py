@@ -30,10 +30,12 @@ class MemoryCompressor:
             similarity_threshold: Seuil de similarité cosinus (0.9)
             max_age_days: Âge maximum des transactions en jours
         """
-        self.shards_dir = shards_directory
+        self.shards_dir = Path(shards_directory)
         self.similarity_threshold = similarity_threshold
         self.max_age = max_age_days
-        self.semantic_search = SemanticSearch(shards_directory=shards_directory, threshold=similarity_threshold, top_k=10)
+        self.max_age_days = max_age_days
+        self.semantic_search = SemanticSearch(shards_directory=str(self.shards_dir), threshold=similarity_threshold, top_k=10)
+        self.shards_data = {}
         self.stats = {
             "total_transactions": 0,
             "consolidated_transactions": 0,
@@ -42,6 +44,19 @@ class MemoryCompressor:
             "last_compression": None
         }
         self._load_all_shards()
+
+    def _load_all_shards(self):
+        """Charge en mémoire la liste des shards disponibles."""
+        self.shards_data = {}
+        if not self.shards_dir.exists():
+            return
+
+        for shard_file in self.shards_dir.glob("*.json"):
+            try:
+                with open(shard_file, 'r', encoding='utf-8') as f:
+                    self.shards_data[shard_file.stem] = json.load(f)
+            except Exception as e:
+                print(f"⚠️ Shard ignoré ({shard_file.name}): {e}")
     
     def _load_shard_data(self, shard_id: str) -> Optional[Dict]:
         """
@@ -53,7 +68,7 @@ class MemoryCompressor:
         Returns:
             Données du shard ou None
         """
-        shard_path = Path(self.shards_dir) / f"{shard_id}.json"
+        shard_path = self.shards_dir / f"{shard_id}.json"
         
         if not shard_path.exists():
             return None
@@ -243,7 +258,8 @@ class MemoryCompressor:
             shard_id: ID du shard
             shard_data: Données du shard
         """
-        shard_path = Path(self.shards_dir) / f"{shard_id}.json"
+        self.shards_dir.mkdir(parents=True, exist_ok=True)
+        shard_path = self.shards_dir / f"{shard_id}.json"
         
         try:
             with open(shard_path, 'w', encoding='utf-8') as f:
@@ -261,8 +277,7 @@ class MemoryCompressor:
         Returns:
             Dictionnaire avec stats par shard
         """
-        from pathlib import Path
-        shards_path = Path(self.shards_dir)
+        shards_path = self.shards_dir
         
         if not shards_path.exists():
             return {"error": "Shards directory not found"}
